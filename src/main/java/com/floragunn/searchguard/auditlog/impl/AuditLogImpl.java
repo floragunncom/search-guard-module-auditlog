@@ -31,6 +31,19 @@ public final class AuditLogImpl extends AbstractAuditLog {
 
     protected final ESLogger log = Loggers.getLogger(this.getClass());
     private AbstractAuditLog delegate;  
+    
+    public static void printLicenseInfo() {
+        System.out.println("***************************************************");
+        System.out.println("Search Guard Audit Log is not free software");
+        System.out.println("for commercial use in production.");
+        System.out.println("You have to obtain a license if you ");
+        System.out.println("use it in production.");
+        System.out.println("***************************************************");
+    }
+
+    static {
+        printLicenseInfo();
+    }
 
     @Inject
     public AuditLogImpl(final Settings settings, Client esclient) {
@@ -55,42 +68,43 @@ public final class AuditLogImpl extends AbstractAuditLog {
         }
         
         if(delegate != null) {
-            log.info("Delegate class {}", delegate.getClass());
-        } else {
-            log.info("Audit log available but disabled");
-        }
-        
-        
-        final SecurityManager sm = System.getSecurityManager();
+            log.info("Audit Log class: {}", delegate.getClass().getSimpleName());
+            
+            final SecurityManager sm = System.getSecurityManager();
 
-        if (sm != null) {
-            sm.checkPermission(new SpecialPermission());
-        }
-
-        AccessController.doPrivileged(new PrivilegedAction<Object>() {
-            @Override
-            public Object run() {
-                Runtime.getRuntime().addShutdownHook(new Thread() {
-
-                    @Override
-                    public void run() {
-                        try {
-                            close();
-                        } catch (IOException e) {
-                            log.warn("Exception while shutting down audit log {}", delegate);
-                        }
-                    }           
-                });
-                return null;
+            if (sm != null) {
+                log.debug("Security Manager present");
+                sm.checkPermission(new SpecialPermission());
             }
-        });
+            
+            AccessController.doPrivileged(new PrivilegedAction<Object>() {
+                @Override
+                public Object run() {
+                    Runtime.getRuntime().addShutdownHook(new Thread() {
+
+                        @Override
+                        public void run() {
+                            try {
+                                close();
+                            } catch (IOException e) {
+                                log.warn("Exception while shutting down audit log {}", delegate);
+                            }
+                        }           
+                    });
+                    log.debug("Shutdown Hook registered");
+                    return null;
+                }
+            });
+            
+        } else {
+            log.info("Audit Log available but disabled");
+        }        
     }
 
     @Override
     public void close() throws IOException {
         if(delegate != null) {
-            log.info("Close {}", delegate.getClass().getSimpleName());
-            
+            log.info("Close {}", delegate.getClass().getSimpleName());           
             delegate.close();
         }
     }
