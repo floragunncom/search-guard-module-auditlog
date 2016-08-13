@@ -7,14 +7,14 @@ This module for [Search Guard 2](https://github.com/floragunncom/search-guard) a
 
 ## Downloads
 
-The Audit Log module will be released in July, but you can 
-[Download RC1 for SG RC1 here](http://oss.sonatype.org/service/local/artifact/maven/content?c=jar-with-dependencies&r=releases&g=com.floragunn&a=dlic-search-guard-module-auditlog&v=2.3.3.0-rc1).
+Download the latest version of the audit log module from [Maven](http://search.maven.org/#search%7Cga%7C1%7Ca%3A%22dlic-search-guard-module-auditlog%22).
+
+## Documentation
+
+Installation and configuration instructions can be found in the official [Search Guard 2 docs](https://github.com/floragunncom/search-guard-docs), chapter [Audit logging](https://github.com/floragunncom/search-guard-docs/blob/master/auditlogging.md)
 
 ## Commercial use
 This software is free of charge for non-commercial and academic use. For commercial use in a production environment you have to obtain a license [here](https://floragunn.com/searchguard/searchguard-license-support/) 
-
-## Documentation
-Documentation is provided in our [Search Guard Audit Log Wiki](https://github.com/floragunncom/search-guard-module-auditlog/wiki)
 
 ##License
 Copyright 2016 by floragunn UG (haftungsbeschränkt) - All rights reserved 
