@@ -27,10 +27,10 @@ import org.elasticsearch.common.settings.Settings;
 
 public final class AuditLogImpl extends AbstractAuditLog {
     
-    //config in elasticsearch.yml
 
     protected final ESLogger log = Loggers.getLogger(this.getClass());
-    private AbstractAuditLog delegate;  
+
+    AbstractAuditLog delegate;
     
     public static void printLicenseInfo() {
         System.out.println("***************************************************");
@@ -52,21 +52,30 @@ public final class AuditLogImpl extends AbstractAuditLog {
         String index = settings.get("searchguard.audit.config.index","auditlog");
         String doctype = settings.get("searchguard.audit.config.type","auditlog");
         
-        if(type != null && (type.equals(ESAuditLog.class.getName()) || type.equalsIgnoreCase("internal_elasticsearch"))) {
-            delegate = new ESAuditLog(esclient, index, doctype);
-        } else if(type != null && (type.equals(HttpESAuditLog.class.getName()) || type.equalsIgnoreCase("external_elasticsearch"))) {
-            try {
-                delegate = new HttpESAuditLog(settings);
-            } catch (Exception e) {
-                log.error("Unable to setup HttpESAuditLog due to {}", e, e.toString());
-                throw new RuntimeException("Unable to setup HttpESAuditLog due to "+e.toString(), e);
-            }
-        } else if ("debug".equals(type)) {
-            delegate = new DebugAuditLog();
-        } else {
-            delegate = null;
-        }
-        
+		if (type != null) {
+			switch (type.toLowerCase()) {
+			case "internal_elasticsearch":
+				delegate = new ESAuditLog(esclient, index, doctype);
+				break;
+			case "external_elasticsearch":
+				try {
+					delegate = new HttpESAuditLog(settings);
+				} catch (Exception e) {
+					log.error("Audit logging unavailable: Unable to setup HttpESAuditLog due to {}", e, e.toString());
+				}
+				break;
+			case "debug":
+				delegate = new DebugAuditLog();
+				break;
+			default:
+				try {
+					delegate = (AbstractAuditLog)Class.forName(type).newInstance();
+				} catch (InstantiationException | IllegalAccessException | ClassNotFoundException | NoClassDefFoundError e) {
+					log.error("Audit logging unavailable: Cannot instantiate object of class {} due to {}", e, type, e.toString());
+				}
+			}
+		}
+                
         if(delegate != null) {
             log.info("Audit Log class: {}", delegate.getClass().getSimpleName());
             
