@@ -20,6 +20,7 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.security.KeyManagementException;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
@@ -33,6 +34,7 @@ import java.util.Map;
 import java.util.Objects;
 
 import javax.net.ssl.SSLContext;
+import javax.xml.bind.DatatypeConverter;
 
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpHeaders;
@@ -53,7 +55,6 @@ import org.elasticsearch.common.xcontent.XContentParser;
 import org.elasticsearch.common.xcontent.XContentType;
 
 import com.floragunn.searchguard.auditlog.support.Cycle;
-import com.floragunn.searchguard.support.Base64Helper;
 import com.google.common.collect.Lists;
 
 public class HttpClient implements Closeable {
@@ -86,7 +87,7 @@ public class HttpClient implements Closeable {
         }
 
         public HttpClientBuilder setBasicCredentials(final String username, final String password) {
-            basicCredentials = Base64Helper.encodeBasicHeader(Objects.requireNonNull(username), Objects.requireNonNull(password));
+            basicCredentials = encodeBasicHeader(Objects.requireNonNull(username), Objects.requireNonNull(password));
             return this;
         }
 
@@ -103,6 +104,10 @@ public class HttpClient implements Closeable {
         public HttpClient build() throws Exception {
             return new HttpClient(trustStore, truststorePassword, basicCredentials, keystore, keystorePassword, verifyHostnames, ssl,
                     servers);
+        }
+        
+        private static String encodeBasicHeader(final String username, final String password) {
+            return new String(DatatypeConverter.printBase64Binary((username + ":" + Objects.requireNonNull(password)).getBytes(StandardCharsets.UTF_8)));
         }
 
     }
