@@ -23,6 +23,7 @@ import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.auditlog.CaptureSystemOut;
 import com.floragunn.searchguard.auditlog.MockRestRequest;
 import com.floragunn.searchguard.auditlog.impl.AuditMessage.Category;
+import com.google.common.base.Joiner;
 
 public class DisabledCategoriesTest extends AbstractUnitTest  {
 	
@@ -104,13 +105,14 @@ public class DisabledCategoriesTest extends AbstractUnitTest  {
 	public void restoreOut() {
 		System.setOut(new PrintStream(new FileOutputStream(FileDescriptor.out)));
 	}
+	
 	protected void checkCategoriesDisabled(Category ... disabledCategories) {
 		// todo: Which source level are we officially on? Can I use lambdas here?
 		List<String> categoryNames = new LinkedList<>();
 		for (Category category : disabledCategories) {
 			categoryNames.add(category.name().toLowerCase());
 		}
-		String disabledCategoriesString = String.join(",", categoryNames);
+		String disabledCategoriesString = Joiner.on(",").join(categoryNames);
 		
 		Builder settingsBuilder  = Settings.settingsBuilder();
 		settingsBuilder.put("searchguard.audit.type", "debug");
