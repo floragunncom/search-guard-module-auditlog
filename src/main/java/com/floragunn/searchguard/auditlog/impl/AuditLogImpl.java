@@ -30,6 +30,7 @@ public final class AuditLogImpl extends AbstractAuditLog {
     //config in elasticsearch.yml
 
     protected final ESLogger log = Loggers.getLogger(this.getClass());
+    
     private AbstractAuditLog delegate;  
     
     public static void printLicenseInfo() {
@@ -47,13 +48,14 @@ public final class AuditLogImpl extends AbstractAuditLog {
 
     @Inject
     public AuditLogImpl(final Settings settings, Client esclient) {
+    	super(settings);
         String type = settings.get("searchguard.audit.type", null);
         
         String index = settings.get("searchguard.audit.config.index","auditlog");
         String doctype = settings.get("searchguard.audit.config.type","auditlog");
         
         if(type != null && (type.equals(ESAuditLog.class.getName()) || type.equalsIgnoreCase("internal_elasticsearch"))) {
-            delegate = new ESAuditLog(esclient, index, doctype);
+            delegate = new ESAuditLog(settings, esclient, index, doctype);
         } else if(type != null && (type.equals(HttpESAuditLog.class.getName()) || type.equalsIgnoreCase("external_elasticsearch"))) {
             try {
                 delegate = new HttpESAuditLog(settings);
@@ -62,7 +64,7 @@ public final class AuditLogImpl extends AbstractAuditLog {
                 throw new RuntimeException("Unable to setup HttpESAuditLog due to "+e.toString(), e);
             }
         } else if ("debug".equals(type)) {
-            delegate = new DebugAuditLog();
+            delegate = new DebugAuditLog(settings);
         } else {
             delegate = null;
         }

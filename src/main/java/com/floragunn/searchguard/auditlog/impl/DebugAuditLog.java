@@ -16,10 +16,12 @@ package com.floragunn.searchguard.auditlog.impl;
 
 import java.io.IOException;
 
+import org.elasticsearch.common.settings.Settings;
+
 public class DebugAuditLog extends AbstractAuditLog {
 
-    public DebugAuditLog() {
-        super();
+    public DebugAuditLog(final Settings settings) {
+        super(settings);
     }
 
     @Override
