@@ -23,6 +23,7 @@ import org.elasticsearch.client.Client;
 import org.elasticsearch.common.ContextAndHeaderHolder;
 import org.elasticsearch.common.logging.ESLogger;
 import org.elasticsearch.common.logging.Loggers;
+import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.unit.TimeValue;
 
 import com.floragunn.searchguard.support.ConfigConstants;
@@ -33,8 +34,8 @@ public final class ESAuditLog extends AbstractAuditLog {
     private final String index;
     private final String type;
 
-    public ESAuditLog(final Client client, String index, String type) {
-        super();
+    public ESAuditLog(final Settings settings, final Client client, String index, String type) {
+        super(settings);
         this.client = client;
         this.index = index;
         this.type = type;
@@ -76,6 +77,8 @@ public final class ESAuditLog extends AbstractAuditLog {
         if (Boolean.parseBoolean((String) request.getHeader(ConfigConstants.SG_CONF_REQUEST_HEADER))) {
             return;
         }
-        save(msg);
+        if (msg.getCategory().isEnabled()) {
+        	save(msg);	
+        }        
     }
 }

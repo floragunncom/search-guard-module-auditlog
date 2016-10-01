@@ -41,8 +41,10 @@ public final class HttpESAuditLog extends AbstractAuditLog {
     private final static ExecutorService pool = Executors.newFixedThreadPool(10);
 
     public HttpESAuditLog(final Settings settings) throws Exception {
+    	
+    	super(settings);
         
-        Settings auditSettings = settings.getAsSettings("searchguard.audit.config");
+    	Settings auditSettings = settings.getAsSettings("searchguard.audit.config");
         
         servers = auditSettings.getAsArray("http_endpoints", new String[]{"localhost:9200"});
         this.index = auditSettings.get("index","auditlog");
