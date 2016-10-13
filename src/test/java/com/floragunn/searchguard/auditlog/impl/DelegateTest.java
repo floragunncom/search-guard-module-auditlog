@@ -1,15 +1,13 @@
 package com.floragunn.searchguard.auditlog.impl;
 
-import org.elasticsearch.common.logging.ESLogger;
-import org.elasticsearch.common.logging.Loggers;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.settings.Settings.Builder;
 import org.junit.Assert;
 import org.junit.Test;
 
 public class DelegateTest  extends AbstractUnitTest  {
-	
-	protected final ESLogger log = Loggers.getLogger(this.getClass());
 
 	@Test
 	public void auditLogTypeTest() throws Exception{
@@ -22,10 +20,10 @@ public class DelegateTest  extends AbstractUnitTest  {
 	}
 		
 	private void testAuditType(String type, Class<? extends AbstractAuditLog> expectedClass) throws Exception {
-		Builder settingsBuilder  = Settings.settingsBuilder();
+		Builder settingsBuilder  = Settings.builder();
 		settingsBuilder.put("searchguard.audit.type", type);
 		settingsBuilder.put("path.home", ".");
-		AuditLogImpl auditLog = new AuditLogImpl(settingsBuilder.build(), null);
+		AuditLogImpl auditLog = new AuditLogImpl(settingsBuilder.build(), null, null);
 		auditLog.close();
 		if (expectedClass != null) {
 		    Assert.assertNotNull("delegate is null for type: "+type,auditLog.delegate);

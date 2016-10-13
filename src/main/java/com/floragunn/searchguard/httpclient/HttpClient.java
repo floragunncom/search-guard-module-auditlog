@@ -48,8 +48,8 @@ import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.message.BasicHeader;
-import org.elasticsearch.common.logging.ESLogger;
-import org.elasticsearch.common.logging.Loggers;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.common.xcontent.XContentParser;
 import org.elasticsearch.common.xcontent.XContentType;
@@ -119,7 +119,7 @@ public class HttpClient implements Closeable {
     private final List<String> servers = new ArrayList<String>(); // server:port
     private final File trustStore;
     private final String truststorePassword;
-    private final ESLogger log = Loggers.getLogger(this.getClass());
+    private final Logger log = LogManager.getLogger(this.getClass());
     private CloseableHttpClient client;
     private String basicCredentials;
     // private Path keytab;

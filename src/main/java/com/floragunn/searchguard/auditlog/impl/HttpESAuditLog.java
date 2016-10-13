@@ -20,10 +20,9 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
-import org.elasticsearch.common.logging.ESLogger;
-import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.env.Environment;
+import org.elasticsearch.threadpool.ThreadPool;
 
 import com.floragunn.searchguard.httpclient.HttpClient;
 import com.floragunn.searchguard.httpclient.HttpClient.HttpClientBuilder;
@@ -32,17 +31,14 @@ import com.floragunn.searchguard.ssl.util.SSLConfigConstants;
 public final class HttpESAuditLog extends AbstractAuditLog {
     
     //config in elasticsearch.yml
-
-    protected final ESLogger log = Loggers.getLogger(this.getClass());
     private final String index;
     private final String type;
     private final HttpClient client;  
     private final String[] servers;
     private final static ExecutorService pool = Executors.newFixedThreadPool(10);
 
-    public HttpESAuditLog(final Settings settings) throws Exception {
-    	
-    	super(settings);
+    HttpESAuditLog(final Settings settings, ThreadPool threadPool) throws Exception {
+    	super(settings, threadPool);
         
     	Settings auditSettings = settings.getAsSettings("searchguard.audit.config");
         

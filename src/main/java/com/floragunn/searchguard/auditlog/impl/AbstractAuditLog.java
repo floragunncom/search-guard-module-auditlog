@@ -14,11 +14,12 @@
 
 package com.floragunn.searchguard.auditlog.impl;
 
-import org.elasticsearch.common.ContextAndHeaderHolder;
-import org.elasticsearch.common.logging.ESLogger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.rest.RestRequest;
+import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportRequest;
 
 import com.floragunn.searchguard.auditlog.AuditLog;
@@ -26,10 +27,12 @@ import com.floragunn.searchguard.auditlog.impl.AuditMessage.Category;
 
 public abstract class AbstractAuditLog implements AuditLog {
 
-    protected final ESLogger log = Loggers.getLogger(this.getClass());
+    protected final Logger log = LogManager.getLogger(this.getClass());
+    protected final ThreadPool threadPool;
 
-    protected AbstractAuditLog(Settings settings) {
+    protected AbstractAuditLog(Settings settings, ThreadPool threadPool) {
         super();
+        this.threadPool = threadPool;
                 
         String[] disabledCategories = settings.getAsArray("searchguard.audit.config.disabled_categories", new String[]{});
         
@@ -46,52 +49,58 @@ public abstract class AbstractAuditLog implements AuditLog {
 
     @Override
     public void logFailedLogin(final String username, final TransportRequest request) {
-        checkAndSave(request, new AuditMessage(AuditMessage.Category.FAILED_LOGIN, username, null, request));
+        checkAndSave(request, new AuditMessage(AuditMessage.Category.FAILED_LOGIN, username, null, request, threadPool.getThreadContext()));
     }
 
     @Override
     public void logFailedLogin(final String username, final RestRequest request) {
-        checkAndSave(request, new AuditMessage(AuditMessage.Category.FAILED_LOGIN, username, null, request));
+        checkAndSave(request, new AuditMessage(AuditMessage.Category.FAILED_LOGIN, username, null, request, threadPool.getThreadContext()));
     }
 
     @Override
     public void logMissingPrivileges(final String privilege, final TransportRequest request) {
-        checkAndSave(request, new AuditMessage(AuditMessage.Category.MISSING_PRIVILEGES, privilege, null, request));
+        checkAndSave(request, new AuditMessage(AuditMessage.Category.MISSING_PRIVILEGES, privilege, null, request, threadPool.getThreadContext()));
     }
 
     @Override
     public void logBadHeaders(final TransportRequest request) {
-        checkAndSave(request, new AuditMessage(AuditMessage.Category.BAD_HEADERS, null, null, request));
+        checkAndSave(request, new AuditMessage(AuditMessage.Category.BAD_HEADERS, null, null, request, threadPool.getThreadContext()));
     }
 
     @Override
     public void logBadHeaders(final RestRequest request) {
-        checkAndSave(request, new AuditMessage(AuditMessage.Category.BAD_HEADERS, null, null, request));
+        checkAndSave(request, new AuditMessage(AuditMessage.Category.BAD_HEADERS, null, null, request, threadPool.getThreadContext()));
     }
 
     @Override
     public void logSgIndexAttempt(final TransportRequest request, final String action) {
-        checkAndSave(request, new AuditMessage(AuditMessage.Category.SG_INDEX_ATTEMPT, action, null, request));
+        checkAndSave(request, new AuditMessage(AuditMessage.Category.SG_INDEX_ATTEMPT, action, null, request, threadPool.getThreadContext()));
     }
 
     @Override
     public void logSSLException(final TransportRequest request, final Throwable t, final String action) {
-        checkAndSave(request, new AuditMessage(AuditMessage.Category.SSL_EXCEPTION, action, t, request));
+        checkAndSave(request, new AuditMessage(AuditMessage.Category.SSL_EXCEPTION, action, t, request, threadPool.getThreadContext()));
     }
 
     @Override
     public void logSSLException(final RestRequest request, final Throwable t, final String action) {
-        checkAndSave(request, new AuditMessage(AuditMessage.Category.SSL_EXCEPTION, action, t, request));
+        checkAndSave(request, new AuditMessage(AuditMessage.Category.SSL_EXCEPTION, action, t, request, threadPool.getThreadContext()));
     }
     
     @Override
     public void logAuthenticatedRequest(TransportRequest request, final String action) {
-        checkAndSave(request, new AuditMessage(AuditMessage.Category.AUTHENTICATED, action, null, request));
+        checkAndSave(request, new AuditMessage(AuditMessage.Category.AUTHENTICATED, action, null, request, threadPool.getThreadContext()));
     }
 
-    protected void checkAndSave(final ContextAndHeaderHolder request, final AuditMessage msg) {
+    protected void checkAndSave(TransportRequest request, final AuditMessage msg) {
         if (msg.getCategory().isEnabled()) {
         	save(msg);        	
+        }
+    }
+    
+    protected void checkAndSave(RestRequest request, final AuditMessage msg) {
+        if (msg.getCategory().isEnabled()) {
+            save(msg);          
         }
     }
 

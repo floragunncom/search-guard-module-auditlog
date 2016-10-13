@@ -20,7 +20,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.elasticsearch.common.ContextAndHeaderHolder;
+import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.common.xcontent.json.JsonXContent;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.transport.TransportRequest;
@@ -47,10 +47,10 @@ class AuditMessage {
     	
     }
 
-    public AuditMessage(final Category category, final Object reason, final Object details, final ContextAndHeaderHolder request) {
+    AuditMessage(final Category category, final Object reason, final Object details, final TransportRequest request, final ThreadContext threadContext) {
     	this.category = category;
     	
-    	final User user = request.getFromContext(ConfigConstants.SG_USER);
+    	final User user = threadContext.getTransient(ConfigConstants.SG_USER);
         final String requestUser = user == null ? null : user.getName();
 
         auditInfo.put("audit_category", category.toString());
@@ -58,20 +58,33 @@ class AuditMessage {
         auditInfo.put("audit_reason", String.valueOf(reason));
         auditInfo.put("audit_details", String.valueOf(details));
         auditInfo.put("audit_date", new Date().toString());
-        auditInfo.put("audit_request_context", String.valueOf(request.getContext()));
-        auditInfo.put("audit_request_headers", String.valueOf(request.getHeaders()));
+        //auditInfo.put("audit_request_context", String.valueOf(request.getContext()));
+        auditInfo.put("audit_request_headers", threadContext.getHeaders());
         auditInfo.put("audit_request_class", request.getClass().toString());
-        auditInfo.put("audit_remote_address", request.getFromContext(ConfigConstants.SG_REMOTE_ADDRESS));
-        auditInfo.put("audit_principal", request.getFromContext(ConfigConstants.SG_SSL_TRANSPORT_PRINCIPAL));
+        auditInfo.put("audit_request_type", "transport");
+        auditInfo.put("audit_remote_address", threadContext.getTransient(ConfigConstants.SG_REMOTE_ADDRESS));
+        auditInfo.put("audit_principal", threadContext.getTransient(ConfigConstants.SG_SSL_TRANSPORT_PRINCIPAL));
+    }
+    
+    AuditMessage(final Category category, final Object reason, final Object details, final RestRequest request, final ThreadContext threadContext) {
+        this.category = category;
+        
+        final User user = threadContext.getTransient(ConfigConstants.SG_USER);
+        final String requestUser = user == null ? null : user.getName();
+
+        auditInfo.put("audit_category", category.toString());
+        auditInfo.put("audit_request_user", requestUser);
+        auditInfo.put("audit_reason", String.valueOf(reason));
+        auditInfo.put("audit_details", String.valueOf(details));
+        auditInfo.put("audit_date", new Date().toString());
+        //auditInfo.put("audit_request_context", String.valueOf(request.getContext()));
+        auditInfo.put("audit_request_headers", threadContext.getHeaders());
+        auditInfo.put("audit_request_class", request.getClass().toString());
+        auditInfo.put("audit_request_type", "rest");
+        auditInfo.put("audit_remote_address", threadContext.getTransient(ConfigConstants.SG_REMOTE_ADDRESS));
+        auditInfo.put("audit_principal", threadContext.getTransient(ConfigConstants.SG_SSL_TRANSPORT_PRINCIPAL));
     }
 
-    AuditMessage(final Category category, final Object reason, final Object details, final TransportRequest request) {
-        this(category, reason, details, (ContextAndHeaderHolder) request);
-    }
-
-    AuditMessage(final Category category, final Object reason, final Object details, final RestRequest request) {
-        this(category, reason, details, (ContextAndHeaderHolder) request);
-    }
 
     public Map<String, Object> getAsMap() {
         return Collections.unmodifiableMap(this.auditInfo);

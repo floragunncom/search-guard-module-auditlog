@@ -19,23 +19,25 @@ import java.io.IOException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.index.IndexRequestBuilder;
 import org.elasticsearch.action.index.IndexResponse;
+import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.elasticsearch.client.Client;
-import org.elasticsearch.common.ContextAndHeaderHolder;
-import org.elasticsearch.common.logging.ESLogger;
-import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.unit.TimeValue;
+import org.elasticsearch.rest.RestRequest;
+import org.elasticsearch.threadpool.ThreadPool;
+import org.elasticsearch.transport.TransportRequest;
 
 import com.floragunn.searchguard.support.ConfigConstants;
+import com.floragunn.searchguard.support.HeaderHelper;
 
 public final class ESAuditLog extends AbstractAuditLog {
-    protected final ESLogger log = Loggers.getLogger(this.getClass());
+
     private final Client client;
     private final String index;
     private final String type;
 
-    public ESAuditLog(final Settings settings, final Client client, String index, String type) {
-        super(settings);
+    ESAuditLog(final Settings settings, final Client client, String index, String type, ThreadPool threadPool) {
+        super(settings, threadPool);
         this.client = client;
         this.index = index;
         this.type = type;
@@ -50,8 +52,8 @@ public final class ESAuditLog extends AbstractAuditLog {
     protected void save(final AuditMessage msg) {
 
         try {
-            final IndexRequestBuilder irb = client.prepareIndex(index, type).setRefresh(true).setSource(msg.auditInfo);
-            irb.putHeader(ConfigConstants.SG_CONF_REQUEST_HEADER, "true");
+            final IndexRequestBuilder irb = client.prepareIndex(index, type).setRefreshPolicy(RefreshPolicy.IMMEDIATE).setSource(msg.auditInfo);
+            //irb.putHeader(ConfigConstants.SG_CONF_REQUEST_HEADER, "true");
             irb.setTimeout(TimeValue.timeValueMinutes(1));
             irb.execute(new ActionListener<IndexResponse>() {
 
@@ -63,7 +65,7 @@ public final class ESAuditLog extends AbstractAuditLog {
                 }
 
                 @Override
-                public void onFailure(final Throwable e) {
+                public void onFailure(final Exception e) {
                     log.error("Unable to write audit log {} due to {}", e, msg, e.toString());
                 }
             });
@@ -73,12 +75,22 @@ public final class ESAuditLog extends AbstractAuditLog {
     }
 
     @Override
-    protected void checkAndSave(final ContextAndHeaderHolder request, final AuditMessage msg) {
-        if (Boolean.parseBoolean((String) request.getHeader(ConfigConstants.SG_CONF_REQUEST_HEADER))) {
+    protected void checkAndSave(final TransportRequest request, final AuditMessage msg) {
+        if (Boolean.parseBoolean((String) HeaderHelper.getSafeFromHeader(threadPool.getThreadContext(), ConfigConstants.SG_CONF_REQUEST_HEADER))) {
             return;
         }
         if (msg.getCategory().isEnabled()) {
         	save(msg);	
+        }        
+    }
+    
+    @Override
+    protected void checkAndSave(final RestRequest request, final AuditMessage msg) {
+        if (Boolean.parseBoolean((String) HeaderHelper.getSafeFromHeader(threadPool.getThreadContext(), ConfigConstants.SG_CONF_REQUEST_HEADER))) {
+            return;
+        }
+        if (msg.getCategory().isEnabled()) {
+            save(msg);  
         }        
     }
 }

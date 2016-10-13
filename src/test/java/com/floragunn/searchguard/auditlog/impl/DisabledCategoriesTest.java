@@ -9,10 +9,9 @@ import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
 
-import org.elasticsearch.common.logging.ESLogger;
-import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.settings.Settings.Builder;
+import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportRequest;
 import org.junit.After;
 import org.junit.Assert;
@@ -27,8 +26,8 @@ import com.google.common.base.Joiner;
 
 public class DisabledCategoriesTest extends AbstractUnitTest  {
 	
-	protected final ESLogger log = Loggers.getLogger(this.getClass());
-	
+    protected static final ThreadPool MOCK_POOL = new ThreadPool(Settings.builder().put("node.name",  "mock").build());
+    
 	@Rule
 	public CaptureSystemOut capture = new CaptureSystemOut();
 	
@@ -37,10 +36,10 @@ public class DisabledCategoriesTest extends AbstractUnitTest  {
 
 	@Test
 	public void completetlyInvalidConfigurationTest() {
-		Builder settingsBuilder  = Settings.settingsBuilder();
+		Builder settingsBuilder  = Settings.builder();
 		settingsBuilder.put("searchguard.audit.type", "debug");
 		settingsBuilder.put("searchguard.audit.config.disabled_categories", "nonexistant");
-		AuditLog auditLog = new AuditLogImpl(settingsBuilder.build(), null);
+		AuditLog auditLog = new AuditLogImpl(settingsBuilder.build(), null, MOCK_POOL);
 		logAll(auditLog);
 		String result = capture.getResult();
 		Assert.assertTrue(categoriesPresentInLog(result, Category.values()));
@@ -49,10 +48,10 @@ public class DisabledCategoriesTest extends AbstractUnitTest  {
 
 	@Test
 	public void invalidConfigurationTest() {
-		Builder settingsBuilder  = Settings.settingsBuilder();
+		Builder settingsBuilder  = Settings.builder();
 		settingsBuilder.put("searchguard.audit.type", "debug");
 		settingsBuilder.put("searchguard.audit.config.disabled_categories", "nonexistant, bad_headers");
-		AuditLog auditLog = new AuditLogImpl(settingsBuilder.build(), null);
+		AuditLog auditLog = new AuditLogImpl(settingsBuilder.build(), null, MOCK_POOL);
 		logAll(auditLog);
 		String result = capture.getResult();
 		Assert.assertFalse(categoriesPresentInLog(result, Category.BAD_HEADERS));		
@@ -60,12 +59,12 @@ public class DisabledCategoriesTest extends AbstractUnitTest  {
 	
 	@Test
 	public void enableAllCategoryTest() {
-		Builder settingsBuilder  = Settings.settingsBuilder();
+		Builder settingsBuilder  = Settings.builder();
 		settingsBuilder.put("searchguard.audit.type", "debug");
 		
 		// we use the debug output, no ES client is needed. Also, we 
 		// do not need to close.		
-		AuditLog auditLog = new AuditLogImpl(settingsBuilder.build(), null);
+		AuditLog auditLog = new AuditLogImpl(settingsBuilder.build(), null, MOCK_POOL);
 		
 		logAll(auditLog);
 		String result = capture.getResult();
@@ -114,18 +113,18 @@ public class DisabledCategoriesTest extends AbstractUnitTest  {
 		}
 		String disabledCategoriesString = Joiner.on(",").join(categoryNames);
 		
-		Builder settingsBuilder  = Settings.settingsBuilder();
+		Builder settingsBuilder  = Settings.builder();
 		settingsBuilder.put("searchguard.audit.type", "debug");
 		settingsBuilder.put("searchguard.audit.config.disabled_categories", disabledCategoriesString);
 	
 		// we use the debug output, no ES client is needed. Also, we 
 		// do not need to close.		
-		AuditLog auditLog = new AuditLogImpl(settingsBuilder.build(), null);
+		AuditLog auditLog = new AuditLogImpl(settingsBuilder.build(), null, MOCK_POOL);
 		
 		logAll(auditLog);
 		String result = capture.getResult();
 				
-		List<Category> allButDisablesCategories = new LinkedList(Arrays.asList(Category.values()));
+		List<Category> allButDisablesCategories = new LinkedList<>(Arrays.asList(Category.values()));
 		allButDisablesCategories.removeAll(Arrays.asList(disabledCategories));
 		
 		Assert.assertFalse(categoriesPresentInLog(result, disabledCategories));

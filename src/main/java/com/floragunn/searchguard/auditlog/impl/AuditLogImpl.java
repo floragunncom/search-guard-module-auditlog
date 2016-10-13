@@ -21,14 +21,11 @@ import java.security.PrivilegedAction;
 import org.elasticsearch.SpecialPermission;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.common.inject.Inject;
-import org.elasticsearch.common.logging.ESLogger;
-import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.threadpool.ThreadPool;
 
 public final class AuditLogImpl extends AbstractAuditLog {
-    
 
-    protected final ESLogger log = Loggers.getLogger(this.getClass());
     AbstractAuditLog delegate;
     
     public static void printLicenseInfo() {
@@ -45,8 +42,8 @@ public final class AuditLogImpl extends AbstractAuditLog {
     }
 
     @Inject
-    public AuditLogImpl(final Settings settings, Client esclient) {
-    	super(settings);
+    public AuditLogImpl(final Settings settings, Client esclient, ThreadPool threadPool) {
+    	super(settings, threadPool);
         String type = settings.get("searchguard.audit.type", null);
         
         String index = settings.get("searchguard.audit.config.index","auditlog");
@@ -55,24 +52,24 @@ public final class AuditLogImpl extends AbstractAuditLog {
 		if (type != null) {
 			switch (type.toLowerCase()) {
 			case "internal_elasticsearch":
-				delegate = new ESAuditLog(settings, esclient, index, doctype);
+				delegate = new ESAuditLog(settings, esclient, index, doctype, threadPool);
 				break;
 			case "external_elasticsearch":
 				try {
-					delegate = new HttpESAuditLog(settings);
+					delegate = new HttpESAuditLog(settings, threadPool);
 				} catch (Exception e) {
 					log.error("Audit logging unavailable: Unable to setup HttpESAuditLog due to {}", e, e.toString());
 				}
 				break;
 			case "debug":
-				delegate = new DebugAuditLog(settings);
+				delegate = new DebugAuditLog(settings, threadPool);
 				break;
 			default:
                 try {
                     Class<?> delegateClass = Class.forName(type);
 
                     if (AbstractAuditLog.class.isAssignableFrom(delegateClass)) {
-                        delegate = (AbstractAuditLog) delegateClass.getConstructor(Settings.class).newInstance(settings);
+                        delegate = (AbstractAuditLog) delegateClass.getConstructor(Settings.class, ThreadPool.class).newInstance(settings, threadPool);
                     } else {
                         log.error("Audit logging unavailable: '{}' is not a subclass of {}", type, AbstractAuditLog.class.getSimpleName());
                     }

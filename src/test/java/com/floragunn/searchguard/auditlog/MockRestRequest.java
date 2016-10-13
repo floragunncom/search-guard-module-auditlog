@@ -1,27 +1,15 @@
 package com.floragunn.searchguard.auditlog;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.util.Collections;
+import java.util.Map.Entry;
 
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.rest.RestRequest;
 
 public class MockRestRequest extends RestRequest {
 
-    private final Map<String, String> headers;
-
-    private final Map<String, String> params;
-
     public MockRestRequest() {
-        this(new HashMap<String, String>(), new HashMap<String, String>());
-    }
-
-    public MockRestRequest(Map<String, String> headers, Map<String, String> context) {
-        this.headers = headers;
-        for (Map.Entry<String, String> entry : context.entrySet()) {
-            putInContext(entry.getKey(), entry.getValue());
-        }
-        this.params = new HashMap<>();
+        super("");
     }
 
     @Override
@@ -31,12 +19,7 @@ public class MockRestRequest extends RestRequest {
 
     @Override
     public String uri() {
-        return "/";
-    }
-
-    @Override
-    public String rawPath() {
-        return "/";
+        return "";
     }
 
     @Override
@@ -51,35 +34,11 @@ public class MockRestRequest extends RestRequest {
 
     @Override
     public String header(String name) {
-        return headers.get(name);
+        return null;
     }
 
     @Override
-    public Iterable<Map.Entry<String, String>> headers() {
-        return headers.entrySet();
-    }
-
-    @Override
-    public boolean hasParam(String key) {
-        return params.containsKey(key);
-    }
-
-    @Override
-    public String param(String key) {
-        return params.get(key);
-    }
-
-    @Override
-    public String param(String key, String defaultValue) {
-        String value = params.get(key);
-        if (value == null) {
-            return defaultValue;
-        }
-        return value;
-    }
-
-    @Override
-    public Map<String, String> params() {
-        return params;
+    public Iterable<Entry<String, String>> headers() {
+        return Collections.emptyList();
     }
 }

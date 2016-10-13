@@ -22,7 +22,7 @@ public class HttpClientTest extends AbstractUnitTest {
     @Test
     public void testPlainConnection() throws Exception {
         
-        final Settings settings = Settings.settingsBuilder()
+        final Settings settings = Settings.builder()
                 .put("searchguard.ssl.transport.enabled", false)
                 .put("searchguard.ssl.http.enabled", false)
                 //.put(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_ENABLE_OPENSSL_IF_AVAILABLE, false)
@@ -65,7 +65,7 @@ public class HttpClientTest extends AbstractUnitTest {
     @Test
     public void testSslConnection() throws Exception {
         
-        final Settings settings = Settings.settingsBuilder()
+        final Settings settings = Settings.builder()
                 .put("searchguard.ssl.transport.enabled", false)
                 .put("searchguard.ssl.http.enabled", true)
                 .put(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_ENABLE_OPENSSL_IF_AVAILABLE, false)
@@ -94,7 +94,7 @@ public class HttpClientTest extends AbstractUnitTest {
     @Test
     public void testSslConnectionPKIAuth() throws Exception {
         
-        final Settings settings = Settings.settingsBuilder()
+        final Settings settings = Settings.builder()
                 .put("searchguard.ssl.transport.enabled", false)
                 .put("searchguard.ssl.http.enabled", true)
                 .put(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_ENABLE_OPENSSL_IF_AVAILABLE, false)

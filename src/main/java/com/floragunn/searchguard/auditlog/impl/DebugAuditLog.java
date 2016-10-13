@@ -17,11 +17,12 @@ package com.floragunn.searchguard.auditlog.impl;
 import java.io.IOException;
 
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.threadpool.ThreadPool;
 
 public class DebugAuditLog extends AbstractAuditLog {
 
-    public DebugAuditLog(final Settings settings) {
-        super(settings);
+    DebugAuditLog(final Settings settings, ThreadPool threadPool) {
+        super(settings, threadPool);
     }
 
     @Override

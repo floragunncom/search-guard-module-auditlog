@@ -18,6 +18,7 @@ import java.net.URL;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.security.KeyStore;
+import java.util.List;
 
 import javax.net.ssl.SSLContext;
 
@@ -32,6 +33,8 @@ import org.apache.http.conn.ssl.SSLContexts;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.impl.client.HttpClients;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchTimeoutException;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthResponse;
 import org.elasticsearch.action.admin.cluster.node.info.NodeInfo;
@@ -39,14 +42,12 @@ import org.elasticsearch.action.admin.cluster.node.info.NodesInfoRequest;
 import org.elasticsearch.action.admin.cluster.node.info.NodesInfoResponse;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.cluster.health.ClusterHealthStatus;
-import org.elasticsearch.common.logging.ESLogger;
-import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.InetSocketTransportAddress;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.node.Node;
 import org.elasticsearch.node.PluginAwareNode;
-import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.transport.Netty4Plugin;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -54,6 +55,7 @@ import org.junit.rules.TestName;
 import org.junit.rules.TestWatcher;
 import org.junit.runner.Description;
 
+import com.floragunn.searchguard.SearchGuardPlugin;
 import com.floragunn.searchguard.ssl.SearchGuardSSLPlugin;
 
 public abstract class AbstractUnitTest {
@@ -115,28 +117,24 @@ public abstract class AbstractUnitTest {
     // @formatter:off
     private Settings.Builder getDefaultSettingsBuilder(final int nodenum, final boolean dataNode, final boolean masterNode) {
 
-        return Settings.settingsBuilder()
+        return Settings.builder()
                 .put("node.name", "searchguard_testnode_" + nodenum)
                 .put("node.data", dataNode)
                 .put("node.master", masterNode)
                 .put("cluster.name", clustername)
                 .put("path.data", "data/data")
-                .put("path.work", "data/work")
-                .put("path.logs", "data/logs")
                 .put("path.conf", "data/config")
-                .put("path.plugins", "data/plugins")
-                .put("index.number_of_shards", "1")
-                .put("index.number_of_replicas", "0")
                 .put("http.enabled", !dataNode)
                 .put("cluster.routing.allocation.disk.watermark.high","1mb")
                 .put("cluster.routing.allocation.disk.watermark.low","1mb")
                 .put("http.cors.enabled", true)
                 .put("node.local", false)
-                .put("path.home",".");
+                .put("path.home",".")
+                .put("node.max_local_storage_nodes",3);
     }
     // @formatter:on
 
-    protected final ESLogger log = Loggers.getLogger(this.getClass());
+    protected final Logger log = LogManager.getLogger(this.getClass());
 
     protected final String getHttpServerUri() {
         final String address = "http" + (enableHTTPClientSSL ? "s" : "") + "://" + httpHost + ":" + httpPort;
@@ -149,11 +147,11 @@ public abstract class AbstractUnitTest {
         FileUtils.deleteDirectory(new File("data"));
 
         esNode1 = new PluginAwareNode(getDefaultSettingsBuilder(1, false, true).put(
-                settings == null ? Settings.Builder.EMPTY_SETTINGS : settings).build(), SearchGuardSSLPlugin.class);
+                settings == null ? Settings.Builder.EMPTY_SETTINGS : settings).build(), Netty4Plugin.class, SearchGuardSSLPlugin.class);
         esNode2 = new PluginAwareNode(getDefaultSettingsBuilder(2, true, true).put(
-                settings == null ? Settings.Builder.EMPTY_SETTINGS : settings).build(), SearchGuardSSLPlugin.class);
+                settings == null ? Settings.Builder.EMPTY_SETTINGS : settings).build(), Netty4Plugin.class,SearchGuardSSLPlugin.class);
         esNode3 = new PluginAwareNode(getDefaultSettingsBuilder(3, true, false).put(
-                settings == null ? Settings.Builder.EMPTY_SETTINGS : settings).build(), SearchGuardSSLPlugin.class);
+                settings == null ? Settings.Builder.EMPTY_SETTINGS : settings).build(), Netty4Plugin.class,SearchGuardSSLPlugin.class);
 
         esNode1.start();
         esNode2.start();
@@ -203,10 +201,9 @@ public abstract class AbstractUnitTest {
 
             final NodesInfoResponse res = esNode1.client().admin().cluster().nodesInfo(new NodesInfoRequest()).actionGet();
 
-            final NodeInfo[] nodes = res.getNodes();
+            final List<NodeInfo> nodes = res.getNodes();
 
-            for (int i = 0; i < nodes.length; i++) {
-                final NodeInfo nodeInfo = nodes[i];
+            for (NodeInfo nodeInfo: nodes) {
                 if (nodeInfo.getHttp() != null && nodeInfo.getHttp().address() != null) {
                     final InetSocketTransportAddress is = (InetSocketTransportAddress) nodeInfo.getHttp().address().publishAddress();
                     httpPort = is.getPort();
