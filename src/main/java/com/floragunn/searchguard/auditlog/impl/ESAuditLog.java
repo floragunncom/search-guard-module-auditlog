@@ -53,7 +53,7 @@ public final class ESAuditLog extends AbstractAuditLog {
 
         try {
             final IndexRequestBuilder irb = client.prepareIndex(index, type).setRefreshPolicy(RefreshPolicy.IMMEDIATE).setSource(msg.auditInfo);
-            //irb.putHeader(ConfigConstants.SG_CONF_REQUEST_HEADER, "true");
+            threadPool.getThreadContext().putHeader(ConfigConstants.SG_CONF_REQUEST_HEADER, "true");
             irb.setTimeout(TimeValue.timeValueMinutes(1));
             irb.execute(new ActionListener<IndexResponse>() {
 
@@ -76,6 +76,7 @@ public final class ESAuditLog extends AbstractAuditLog {
 
     @Override
     protected void checkAndSave(final TransportRequest request, final AuditMessage msg) {
+        //if (Boolean.parseBoolean((String) threadPool.getThreadContext().getHeader(ConfigConstants.SG_CONF_REQUEST_HEADER))) {
         if (Boolean.parseBoolean((String) HeaderHelper.getSafeFromHeader(threadPool.getThreadContext(), ConfigConstants.SG_CONF_REQUEST_HEADER))) {
             return;
         }
@@ -86,6 +87,7 @@ public final class ESAuditLog extends AbstractAuditLog {
     
     @Override
     protected void checkAndSave(final RestRequest request, final AuditMessage msg) {
+        //if (Boolean.parseBoolean((String) threadPool.getThreadContext().getHeader(ConfigConstants.SG_CONF_REQUEST_HEADER))) {
         if (Boolean.parseBoolean((String) HeaderHelper.getSafeFromHeader(threadPool.getThreadContext(), ConfigConstants.SG_CONF_REQUEST_HEADER))) {
             return;
         }
