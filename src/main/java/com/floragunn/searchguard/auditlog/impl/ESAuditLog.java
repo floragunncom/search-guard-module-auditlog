@@ -23,6 +23,7 @@ import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.unit.TimeValue;
+import org.elasticsearch.common.util.concurrent.ThreadContext.StoredContext;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportRequest;
@@ -51,32 +52,35 @@ public final class ESAuditLog extends AbstractAuditLog {
     @Override
     protected void save(final AuditMessage msg) {
 
-        try {
-            final IndexRequestBuilder irb = client.prepareIndex(index, type).setRefreshPolicy(RefreshPolicy.IMMEDIATE).setSource(msg.auditInfo);
-            threadPool.getThreadContext().putHeader(ConfigConstants.SG_CONF_REQUEST_HEADER, "true");
-            irb.setTimeout(TimeValue.timeValueMinutes(1));
-            irb.execute(new ActionListener<IndexResponse>() {
-
-                @Override
-                public void onResponse(final IndexResponse response) {
-                    if(log.isTraceEnabled()) {
-                        log.trace("audit message {} written to {}/{}", msg,response.getIndex(), response.getType());
+        try(StoredContext ctx = threadPool.getThreadContext().newStoredContext()) {
+        
+            try {
+                final IndexRequestBuilder irb = client.prepareIndex(index, type).setRefreshPolicy(RefreshPolicy.IMMEDIATE).setSource(msg.auditInfo);
+                threadPool.getThreadContext().putHeader(ConfigConstants.SG_CONF_REQUEST_HEADER, "true");
+                irb.setTimeout(TimeValue.timeValueMinutes(1));
+                irb.execute(new ActionListener<IndexResponse>() {
+    
+                    @Override
+                    public void onResponse(final IndexResponse response) {
+                        if(log.isTraceEnabled()) {
+                            log.trace("audit message {} written to {}/{}", msg,response.getIndex(), response.getType());
+                        }
                     }
-                }
-
-                @Override
-                public void onFailure(final Exception e) {
-                    log.error("Unable to write audit log {} due to {}", e, msg, e.toString());
-                }
-            });
-        } catch (final Exception e) {
-            log.error("Unable to write audit log {} due to {}", e, msg, e.toString());
+    
+                    @Override
+                    public void onFailure(final Exception e) {
+                        log.error("Unable to write audit log {} due to {}", e, msg, e.toString());
+                    }
+                });
+            } catch (final Exception e) {
+                log.error("Unable to write audit log {} due to {}", e, msg, e.toString());
+            }
+        
         }
     }
 
     @Override
     protected void checkAndSave(final TransportRequest request, final AuditMessage msg) {
-        //if (Boolean.parseBoolean((String) threadPool.getThreadContext().getHeader(ConfigConstants.SG_CONF_REQUEST_HEADER))) {
         if (Boolean.parseBoolean((String) HeaderHelper.getSafeFromHeader(threadPool.getThreadContext(), ConfigConstants.SG_CONF_REQUEST_HEADER))) {
             return;
         }
@@ -87,7 +91,6 @@ public final class ESAuditLog extends AbstractAuditLog {
     
     @Override
     protected void checkAndSave(final RestRequest request, final AuditMessage msg) {
-        //if (Boolean.parseBoolean((String) threadPool.getThreadContext().getHeader(ConfigConstants.SG_CONF_REQUEST_HEADER))) {
         if (Boolean.parseBoolean((String) HeaderHelper.getSafeFromHeader(threadPool.getThreadContext(), ConfigConstants.SG_CONF_REQUEST_HEADER))) {
             return;
         }
