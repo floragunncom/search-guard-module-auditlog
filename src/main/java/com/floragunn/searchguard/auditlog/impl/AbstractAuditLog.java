@@ -16,7 +16,6 @@ package com.floragunn.searchguard.auditlog.impl;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.threadpool.ThreadPool;
@@ -95,12 +94,20 @@ public abstract class AbstractAuditLog implements AuditLog {
     protected void checkAndSave(TransportRequest request, final AuditMessage msg) {
         if (msg.getCategory().isEnabled()) {
         	save(msg);        	
+        } else {
+            if(log.isTraceEnabled()) {
+                log.trace(msg.getCategory()+ " not enabled");
+            }
         }
     }
     
     protected void checkAndSave(RestRequest request, final AuditMessage msg) {
         if (msg.getCategory().isEnabled()) {
             save(msg);          
+        } else {
+            if(log.isTraceEnabled()) {
+                log.trace(msg.getCategory()+ " not enabled");
+            }
         }
     }
 

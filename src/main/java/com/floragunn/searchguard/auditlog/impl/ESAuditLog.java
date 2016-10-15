@@ -82,20 +82,25 @@ public final class ESAuditLog extends AbstractAuditLog {
     @Override
     protected void checkAndSave(final TransportRequest request, final AuditMessage msg) {
         if (Boolean.parseBoolean((String) HeaderHelper.getSafeFromHeader(threadPool.getThreadContext(), ConfigConstants.SG_CONF_REQUEST_HEADER))) {
+            if(log.isTraceEnabled()) {
+                log.trace("audit log of audit log will not be executed");
+            }
+            
             return;
         }
-        if (msg.getCategory().isEnabled()) {
-        	save(msg);	
-        }        
+        super.checkAndSave(request, msg); 
     }
     
     @Override
     protected void checkAndSave(final RestRequest request, final AuditMessage msg) {
         if (Boolean.parseBoolean((String) HeaderHelper.getSafeFromHeader(threadPool.getThreadContext(), ConfigConstants.SG_CONF_REQUEST_HEADER))) {
+            if(log.isTraceEnabled()) {
+                log.trace("audit log of audit log will not be executed");
+            }
+            
+            
             return;
         }
-        if (msg.getCategory().isEnabled()) {
-            save(msg);  
-        }        
+        super.checkAndSave(request, msg);     
     }
 }

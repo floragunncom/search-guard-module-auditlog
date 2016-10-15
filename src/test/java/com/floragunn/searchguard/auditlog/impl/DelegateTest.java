@@ -1,7 +1,5 @@
 package com.floragunn.searchguard.auditlog.impl;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.settings.Settings.Builder;
 import org.junit.Assert;
