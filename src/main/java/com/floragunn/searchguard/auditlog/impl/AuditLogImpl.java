@@ -22,7 +22,9 @@ import org.elasticsearch.SpecialPermission;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.threadpool.ThreadPool;
+import org.elasticsearch.transport.TransportRequest;
 
 public final class AuditLogImpl extends AbstractAuditLog {
 
@@ -125,6 +127,20 @@ public final class AuditLogImpl extends AbstractAuditLog {
     protected void save(final AuditMessage msg) {
         if(delegate != null) {
             delegate.save(msg);
+        }
+    }
+
+    @Override
+    protected void checkAndSave(TransportRequest request, AuditMessage msg) {
+        if(delegate != null) {
+            delegate.checkAndSave(request, msg);
+        }
+    }
+
+    @Override
+    protected void checkAndSave(RestRequest request, AuditMessage msg) {
+        if(delegate != null) {
+            delegate.checkAndSave(request, msg);
         }
     }
 }
