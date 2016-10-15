@@ -52,7 +52,7 @@ public final class ESAuditLog extends AbstractAuditLog {
     @Override
     protected void save(final AuditMessage msg) {
 
-        try(StoredContext ctx = threadPool.getThreadContext().newStoredContext()) {
+        try(StoredContext ctx = threadPool.getThreadContext().stashContext()) {
         
             try {
                 final IndexRequestBuilder irb = client.prepareIndex(index, type).setRefreshPolicy(RefreshPolicy.IMMEDIATE).setSource(msg.auditInfo);
