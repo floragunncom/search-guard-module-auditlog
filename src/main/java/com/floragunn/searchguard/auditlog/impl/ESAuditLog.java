@@ -21,21 +21,23 @@ import org.elasticsearch.action.index.IndexRequestBuilder;
 import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.common.ContextAndHeaderHolder;
+import org.elasticsearch.common.inject.Provider;
 import org.elasticsearch.common.logging.ESLogger;
 import org.elasticsearch.common.logging.Loggers;
+import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.unit.TimeValue;
 
 import com.floragunn.searchguard.support.ConfigConstants;
 
 public final class ESAuditLog extends AbstractAuditLog {
     protected final ESLogger log = Loggers.getLogger(this.getClass());
-    private final Client client;
+    private final Provider<Client> clientProvider;
     private final String index;
     private final String type;
 
-    public ESAuditLog(final Client client, String index, String type) {
-        super();
-        this.client = client;
+    public ESAuditLog(final Settings settings, final Provider<Client> clientProvider, String index, String type) {
+        super(settings);
+        this.clientProvider = clientProvider;
         this.index = index;
         this.type = type;
     }
@@ -49,7 +51,7 @@ public final class ESAuditLog extends AbstractAuditLog {
     protected void save(final AuditMessage msg) {
 
         try {
-            final IndexRequestBuilder irb = client.prepareIndex(index, type).setRefresh(true).setSource(msg.auditInfo);
+            final IndexRequestBuilder irb = clientProvider.get().prepareIndex(index, type).setRefresh(true).setSource(msg.auditInfo);
             irb.putHeader(ConfigConstants.SG_CONF_REQUEST_HEADER, "true");
             irb.setTimeout(TimeValue.timeValueMinutes(1));
             irb.execute(new ActionListener<IndexResponse>() {
@@ -76,6 +78,8 @@ public final class ESAuditLog extends AbstractAuditLog {
         if (Boolean.parseBoolean((String) request.getHeader(ConfigConstants.SG_CONF_REQUEST_HEADER))) {
             return;
         }
-        save(msg);
+        if (msg.getCategory().isEnabled()) {
+        	save(msg);	
+        }        
     }
 }

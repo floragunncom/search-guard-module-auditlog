@@ -17,17 +17,31 @@ package com.floragunn.searchguard.auditlog.impl;
 import org.elasticsearch.common.ContextAndHeaderHolder;
 import org.elasticsearch.common.logging.ESLogger;
 import org.elasticsearch.common.logging.Loggers;
+import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.transport.TransportRequest;
 
 import com.floragunn.searchguard.auditlog.AuditLog;
+import com.floragunn.searchguard.auditlog.impl.AuditMessage.Category;
 
 public abstract class AbstractAuditLog implements AuditLog {
 
     protected final ESLogger log = Loggers.getLogger(this.getClass());
 
-    protected AbstractAuditLog() {
+    protected AbstractAuditLog(Settings settings) {
         super();
+                
+        String[] disabledCategories = settings.getAsArray("searchguard.audit.config.disabled_categories", new String[]{});
+        
+        // check if some categories are disabled
+        for (String event : disabledCategories) {
+        	try {
+        		Category category = AuditMessage.Category.valueOf(event.toUpperCase());
+        		category.setEnabled(false);
+        	} catch(IllegalArgumentException iae) {
+        		log.error("Unkown category {}, please check searchguard.audit.config.disabled_categories settings", event);        		
+        	}
+		}
     }
 
     @Override
@@ -70,15 +84,15 @@ public abstract class AbstractAuditLog implements AuditLog {
         checkAndSave(request, new AuditMessage(AuditMessage.Category.SSL_EXCEPTION, action, t, request));
     }
     
-    
-
     @Override
     public void logAuthenticatedRequest(TransportRequest request, final String action) {
         checkAndSave(request, new AuditMessage(AuditMessage.Category.AUTHENTICATED, action, null, request));
     }
 
     protected void checkAndSave(final ContextAndHeaderHolder request, final AuditMessage msg) {
-        save(msg);
+        if (msg.getCategory().isEnabled()) {
+        	save(msg);        	
+        }
     }
 
     protected abstract void save(final AuditMessage msg);

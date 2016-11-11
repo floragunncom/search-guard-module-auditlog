@@ -30,13 +30,27 @@ import com.floragunn.searchguard.user.User;
 
 class AuditMessage {
     final Map<String, Object> auditInfo = new HashMap<String, Object>();
-
+    final Category category;
+    
     enum Category {
-        BAD_HEADERS, FAILED_LOGIN, MISSING_PRIVILEGES, SG_INDEX_ATTEMPT, SSL_EXCEPTION, AUTHENTICATED
+        BAD_HEADERS, FAILED_LOGIN, MISSING_PRIVILEGES, SG_INDEX_ATTEMPT, SSL_EXCEPTION, AUTHENTICATED;
+    	
+    	private boolean enabled = true;
+
+		public boolean isEnabled() {
+			return enabled;
+		}
+
+		public void setEnabled(boolean enabled) {
+			this.enabled = enabled;
+		}    	    
+    	
     }
 
     public AuditMessage(final Category category, final Object reason, final Object details, final ContextAndHeaderHolder request) {
-        final User user = request.getFromContext(ConfigConstants.SG_USER);
+    	this.category = category;
+    	
+    	final User user = request.getFromContext(ConfigConstants.SG_USER);
         final String requestUser = user == null ? null : user.getName();
 
         auditInfo.put("audit_category", category.toString());
@@ -62,7 +76,11 @@ class AuditMessage {
     public Map<String, Object> getAsMap() {
         return Collections.unmodifiableMap(this.auditInfo);
     }
-
+    
+    public Category getCategory () {
+    	return category;
+    }
+    
     @Override
     public String toString() {
         try {
