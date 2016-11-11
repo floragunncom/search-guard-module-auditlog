@@ -21,6 +21,7 @@ import org.elasticsearch.action.index.IndexRequestBuilder;
 import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.elasticsearch.client.Client;
+import org.elasticsearch.common.inject.Provider;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.util.concurrent.ThreadContext.StoredContext;
@@ -33,13 +34,13 @@ import com.floragunn.searchguard.support.HeaderHelper;
 
 public final class ESAuditLog extends AbstractAuditLog {
 
-    private final Client client;
+    private final Provider<Client> clientProvider;
     private final String index;
     private final String type;
 
-    ESAuditLog(final Settings settings, final Client client, String index, String type, ThreadPool threadPool) {
+    public ESAuditLog(final Settings settings, final Provider<Client> clientProvider, ThreadPool threadPool, String index, String type) {
         super(settings, threadPool);
-        this.client = client;
+        this.clientProvider = clientProvider;
         this.index = index;
         this.type = type;
     }
@@ -55,7 +56,7 @@ public final class ESAuditLog extends AbstractAuditLog {
         try(StoredContext ctx = threadPool.getThreadContext().stashContext()) {
         
             try {
-                final IndexRequestBuilder irb = client.prepareIndex(index, type).setRefreshPolicy(RefreshPolicy.IMMEDIATE).setSource(msg.auditInfo);
+                final IndexRequestBuilder irb = clientProvider.get().prepareIndex(index, type).setRefreshPolicy(RefreshPolicy.IMMEDIATE).setSource(msg.auditInfo);
                 threadPool.getThreadContext().putHeader(ConfigConstants.SG_CONF_REQUEST_HEADER, "true");
                 irb.setTimeout(TimeValue.timeValueMinutes(1));
                 irb.execute(new ActionListener<IndexResponse>() {
