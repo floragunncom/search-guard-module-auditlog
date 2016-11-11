@@ -21,6 +21,7 @@ import java.security.PrivilegedAction;
 import org.elasticsearch.SpecialPermission;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.common.inject.Inject;
+import org.elasticsearch.common.inject.Provider;
 import org.elasticsearch.common.logging.ESLogger;
 import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.common.settings.Settings;
@@ -45,7 +46,7 @@ public final class AuditLogImpl extends AbstractAuditLog {
     }
 
     @Inject
-    public AuditLogImpl(final Settings settings, Client esclient) {
+    public AuditLogImpl(final Settings settings, Provider<Client> clientProvider) {
     	super(settings);
         String type = settings.get("searchguard.audit.type", null);
         
@@ -55,7 +56,7 @@ public final class AuditLogImpl extends AbstractAuditLog {
 		if (type != null) {
 			switch (type.toLowerCase()) {
 			case "internal_elasticsearch":
-				delegate = new ESAuditLog(settings, esclient, index, doctype);
+				delegate = new ESAuditLog(settings, clientProvider, index, doctype);
 				break;
 			case "external_elasticsearch":
 				try {
