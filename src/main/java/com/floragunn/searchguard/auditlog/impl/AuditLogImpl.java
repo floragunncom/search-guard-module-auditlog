@@ -65,6 +65,9 @@ public final class AuditLogImpl extends AbstractAuditLog {
 					log.error("Audit logging unavailable: Unable to setup HttpESAuditLog due to {}", e, e.toString());
 				}
 				break;
+			case "webhook":
+				delegate = new WebhookAuditLog(settings);
+				break;				
 			case "debug":
 				delegate = new DebugAuditLog(settings);
 				break;

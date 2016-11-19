@@ -9,8 +9,6 @@ import org.junit.Test;
 
 public class DelegateTest  extends AbstractUnitTest  {
 	
-	protected final ESLogger log = Loggers.getLogger(this.getClass());
-
 	@Test
 	public void auditLogTypeTest() throws Exception{
 		testAuditType("DeBUg", DebugAuditLog.class);

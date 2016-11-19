@@ -37,7 +37,7 @@ public class DisabledCategoriesTest extends AbstractUnitTest  {
 
 	@Test
 	public void completetlyInvalidConfigurationTest() {
-		Builder settingsBuilder  = Settings.settingsBuilder();
+		Builder settingsBuilder = Settings.settingsBuilder();
 		settingsBuilder.put("searchguard.audit.type", "debug");
 		settingsBuilder.put("searchguard.audit.config.disabled_categories", "nonexistant");
 		AuditLog auditLog = new AuditLogImpl(settingsBuilder.build(), null);
