@@ -134,7 +134,7 @@ public class DisabledCategoriesTest extends AbstractUnitTest  {
 		
 	protected boolean categoriesPresentInLog(String result, Category ... categories) {
 		for (Category category : categories) {
-			if(!result.contains("\"audit_category\":\""+category.name()+"\"")) {
+			if(!result.contains("\"Category\":\""+category.name()+"\"")) {
 				return false;
 			}
 		}

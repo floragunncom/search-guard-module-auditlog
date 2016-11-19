@@ -6,7 +6,6 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 
-import org.apache.commons.io.IOUtils;
 import org.apache.http.HttpStatus;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
@@ -95,16 +94,12 @@ class WebhookAuditLog extends AbstractAuditLog {
 
 	boolean doGet(String url) {
 		HttpGet httpGet = new HttpGet(url);
-		InputStream inStream = null;
 		CloseableHttpResponse serverResponse = null;
 		try {
 			serverResponse = httpClient.execute(httpGet);
-			inStream = serverResponse.getEntity().getContent();
-			String responseAsString = IOUtils.toString(inStream);
 			int responseCode = serverResponse.getStatusLine().getStatusCode();
 			if (responseCode != HttpStatus.SC_OK) {
-				log.error("Cannot GET to webhook URL '{}', server returned status {} and message {}", webhookUrl, responseCode,
-						responseAsString);
+				log.error("Cannot GET to webhook URL '{}', server returned status {}", webhookUrl, responseCode);
 				return false;
 			}
 			return true;
@@ -118,8 +113,7 @@ class WebhookAuditLog extends AbstractAuditLog {
 				}
 			} catch (IOException e) {
 				log.error("Cannot close server response '{}'", e);
-			}
-			IOUtils.closeQuietly(inStream);
+			}			
 		}
 	}
 
@@ -162,15 +156,11 @@ class WebhookAuditLog extends AbstractAuditLog {
 		postRequest.setEntity(input);
 
 		CloseableHttpResponse serverResponse = null;
-		InputStream inStream = null;
 		try {
 			serverResponse = httpClient.execute(postRequest);
-			inStream = serverResponse.getEntity().getContent();
-			String responseAsString = IOUtils.toString(inStream);
 			int responseCode = serverResponse.getStatusLine().getStatusCode();
 			if (responseCode != HttpStatus.SC_OK) {
-				log.error("Cannot POST to webhook URL '{}', server returned status {} and message {}", webhookUrl, responseCode,
-						responseAsString);
+				log.error("Cannot POST to webhook URL '{}', server returned status {}", webhookUrl, responseCode);
 				return false;
 			}
 			return true;
@@ -183,9 +173,8 @@ class WebhookAuditLog extends AbstractAuditLog {
 					serverResponse.close();
 				}
 			} catch (IOException e) {
-				log.error("Cannot close server response '{}'", e);
+				log.error("Cannot close server response", e);
 			}
-			IOUtils.closeQuietly(inStream);
 		}
 	}
 
