@@ -24,11 +24,16 @@ import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.common.xcontent.json.JsonXContent;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.transport.TransportRequest;
+import org.joda.time.DateTime;
+import org.joda.time.DateTimeZone;
+import org.joda.time.format.DateTimeFormat;
+import org.joda.time.format.DateTimeFormatter;
 
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.user.User;
 
 class AuditMessage {
+    private static final DateTimeFormatter DEFAULT_FORMAT = DateTimeFormat.forPattern("yyyy-MM-dd'T'HH:mm:ss.SSSZZ");
     final Map<String, Object> auditInfo = new HashMap<String, Object>();
     final Category category;
     
@@ -52,12 +57,14 @@ class AuditMessage {
     	
     	final User user = threadContext.getTransient(ConfigConstants.SG_USER);
         final String requestUser = user == null ? null : user.getName();
+        final String currentTime = currentTime();
 
-        auditInfo.put("audit_category", category.toString());
+        auditInfo.put("audit_category", String.valueOf(category));
         auditInfo.put("audit_request_user", requestUser);
         auditInfo.put("audit_reason", String.valueOf(reason));
         auditInfo.put("audit_details", String.valueOf(details));
         auditInfo.put("audit_date", new Date().toString());
+        auditInfo.put("audit_utc_timestamp", currentTime);
         //auditInfo.put("audit_request_context", String.valueOf(request.getContext()));
         auditInfo.put("audit_request_headers", threadContext.getHeaders());
         auditInfo.put("audit_request_class", request.getClass().toString());
@@ -71,12 +78,14 @@ class AuditMessage {
         
         final User user = threadContext.getTransient(ConfigConstants.SG_USER);
         final String requestUser = user == null ? null : user.getName();
+        final String currentTime = currentTime();
 
-        auditInfo.put("audit_category", category.toString());
+        auditInfo.put("audit_category", String.valueOf(category));
         auditInfo.put("audit_request_user", requestUser);
         auditInfo.put("audit_reason", String.valueOf(reason));
         auditInfo.put("audit_details", String.valueOf(details));
         auditInfo.put("audit_date", new Date().toString());
+        auditInfo.put("audit_utc_timestamp", currentTime);
         //auditInfo.put("audit_request_context", String.valueOf(request.getContext()));
         auditInfo.put("audit_request_headers", threadContext.getHeaders());
         auditInfo.put("audit_request_class", request.getClass().toString());
@@ -101,5 +110,10 @@ class AuditMessage {
         } catch (final IOException e) {
             return e.toString();
         }
+    }
+    
+    protected String currentTime() {
+        DateTime dt = new DateTime(DateTimeZone.UTC);        
+        return DEFAULT_FORMAT.print(dt);
     }
 }
