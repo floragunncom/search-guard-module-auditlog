@@ -225,14 +225,14 @@ public class WebhookAuditLogTest extends AbstractUnitTest {
 		TestHttpHandler handler = new TestHttpHandler();
 
 		HttpServer server = ServerBootstrap.bootstrap()
-				.setListenerPort(8080)
+				.setListenerPort(8081)
 				.setServerInfo("Test/1.1")
 				.registerHandler("*", handler)
 				.create();
 
 		server.start();
 
-		String url = "https://localhost:8080/endpoint";
+		String url = "https://localhost:8081/endpoint";
 
 		Settings settings = Settings.settingsBuilder()
 				.put("searchguard.audit.config.webhook_url", url)
@@ -254,7 +254,7 @@ public class WebhookAuditLogTest extends AbstractUnitTest {
 		TestHttpHandler handler = new TestHttpHandler();
 
 		HttpServer server = ServerBootstrap.bootstrap()
-				.setListenerPort(8080)
+				.setListenerPort(8082)
 				.setServerInfo("Test/1.1")
 				.setSslContext(createSSLContext())
 				.registerHandler("*", handler)
@@ -262,7 +262,7 @@ public class WebhookAuditLogTest extends AbstractUnitTest {
 
 		server.start();
 
-		String url = "https://localhost:8080/endpoint";
+		String url = "https://localhost:8082/endpoint";
 		
 		// try with ssl verification on, must fail
 		Settings settings = Settings.settingsBuilder()
