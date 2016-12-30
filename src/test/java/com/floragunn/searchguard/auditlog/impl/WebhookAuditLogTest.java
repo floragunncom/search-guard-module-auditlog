@@ -78,6 +78,8 @@ public class WebhookAuditLogTest extends AbstractUnitTest {
 		Assert.assertEquals(WebhookFormat.TEXT, auditlog.webhookFormat);
 		Assert.assertEquals(ContentType.TEXT_PLAIN, auditlog.webhookFormat.getContentType());
 		Assert.assertTrue(auditlog.payload, !auditlog.payload.startsWith("{\"text\":"));
+		Assert.assertTrue(auditlog.payload, auditlog.payload.contains("audit_utc_timestamp"));
+		Assert.assertTrue(auditlog.payload, auditlog.payload.contains("audit_remote_address"));
 
 		// JSON
 		settings = Settings.settingsBuilder()
@@ -90,6 +92,8 @@ public class WebhookAuditLogTest extends AbstractUnitTest {
 		Assert.assertEquals(WebhookFormat.JSON, auditlog.webhookFormat);
 		Assert.assertEquals(ContentType.APPLICATION_JSON, auditlog.webhookFormat.getContentType());
 		Assert.assertTrue(auditlog.payload, !auditlog.payload.startsWith("{\"text\":"));
+		Assert.assertTrue(auditlog.payload, auditlog.payload.contains("audit_utc_timestamp"));
+        Assert.assertTrue(auditlog.payload, auditlog.payload.contains("audit_remote_address"));
 
 		// SLACK
 		settings = Settings.settingsBuilder()
@@ -101,6 +105,8 @@ public class WebhookAuditLogTest extends AbstractUnitTest {
 		Assert.assertEquals(WebhookFormat.SLACK, auditlog.webhookFormat);
 		Assert.assertEquals(ContentType.APPLICATION_JSON, auditlog.webhookFormat.getContentType());
 		Assert.assertTrue(auditlog.payload, auditlog.payload.startsWith("{\"text\":"));
+		Assert.assertTrue(auditlog.payload, auditlog.payload.contains("audit_utc_timestamp"));
+        Assert.assertTrue(auditlog.payload, auditlog.payload.contains("audit_remote_address"));
 	}
 
 	@Test

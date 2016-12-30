@@ -27,12 +27,17 @@ import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.xcontent.json.JsonXContent;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.transport.TransportRequest;
+import org.joda.time.DateTime;
+import org.joda.time.DateTimeZone;
+import org.joda.time.format.DateTimeFormat;
+import org.joda.time.format.DateTimeFormatter;
 
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.user.User;
 
 class AuditMessage {
 
+    private static final DateTimeFormatter DEFAULT_FORMAT = DateTimeFormat.forPattern("yyyy-MM-dd'T'HH:mm:ss.SSSZZ");
 	final Map<AuditMessageKey, Object> auditInfo = new HashMap<AuditMessageKey, Object>();
 	final Category category;
 
@@ -41,12 +46,14 @@ class AuditMessage {
 
 		final User user = request.getFromContext(ConfigConstants.SG_USER);
 		final String requestUser = user == null ? null : user.getName();
+		final String currentTime = currentTime();
 
 		auditInfo.put(AuditMessageKey.CATEGORY, category.toString());
 		auditInfo.put(AuditMessageKey.REQUEST_USER, requestUser);
 		auditInfo.put(AuditMessageKey.REASON, String.valueOf(reason));
 		auditInfo.put(AuditMessageKey.DETAILS, String.valueOf(details));
 		auditInfo.put(AuditMessageKey.DATE, new Date().toString());
+		auditInfo.put(AuditMessageKey.UTC_TIMESTAMP, currentTime);
 		auditInfo.put(AuditMessageKey.REQUEST_CONTEXT, String.valueOf(request.getContext()));
 		auditInfo.put(AuditMessageKey.REQUEST_HEADERS, String.valueOf(request.getHeaders()));
 		auditInfo.put(AuditMessageKey.REQUEST_CLASS, request.getClass().toString());
@@ -119,24 +126,24 @@ class AuditMessage {
 	}
 
 	enum Category {
-		BAD_HEADERS,
-		FAILED_LOGIN,
-		MISSING_PRIVILEGES,
-		SG_INDEX_ATTEMPT,
-		SSL_EXCEPTION,
-		AUTHENTICATED;
+        BAD_HEADERS,
+        FAILED_LOGIN,
+        MISSING_PRIVILEGES,
+        SG_INDEX_ATTEMPT,
+        SSL_EXCEPTION,
+        AUTHENTICATED;
 
-		private boolean enabled = true;
+        private boolean enabled = true;
 
-		public boolean isEnabled() {
-			return enabled;
-		}
+        public boolean isEnabled() {
+            return enabled;
+        }
 
-		public void setEnabled(boolean enabled) {
-			this.enabled = enabled;
-		}
+        public void setEnabled(boolean enabled) {
+            this.enabled = enabled;
+        }
 
-	}
+    }
 
 	enum AuditMessageKey {
 
@@ -149,7 +156,8 @@ class AuditMessage {
 		REQUEST_CLASS("audit_request_class"),
 		REQUEST_CONTEXT("audit_request_context"),
 		REQUEST_HEADERS("audit_request_headers"),
-		PRINCIPAL("audit_principal");
+		PRINCIPAL("audit_principal"),
+		UTC_TIMESTAMP("audit_utc_timestamp");
 		
 		private String name;
 
@@ -161,4 +169,9 @@ class AuditMessage {
 			return name;
 		}
 	}
+
+    protected String currentTime() {
+        DateTime dt = new DateTime(DateTimeZone.UTC);        
+        return DEFAULT_FORMAT.print(dt);
+    }
 }
