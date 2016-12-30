@@ -20,6 +20,9 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
+import org.elasticsearch.cluster.ClusterService;
+import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
+import org.elasticsearch.common.inject.Provider;
 import org.elasticsearch.common.logging.ESLogger;
 import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.common.settings.Settings;
@@ -40,9 +43,10 @@ public final class HttpESAuditLog extends AbstractAuditLog {
 	private final String[] servers;
 	private final static ExecutorService pool = Executors.newFixedThreadPool(10);
 
-	public HttpESAuditLog(final Settings settings) throws Exception {
+	public HttpESAuditLog(final Settings settings,
+	        final IndexNameExpressionResolver resolver, final Provider<ClusterService> clusterService) throws Exception {
 
-		super(settings);
+		super(settings, resolver, clusterService);
 
 		Settings auditSettings = settings.getAsSettings("searchguard.audit.config");
 

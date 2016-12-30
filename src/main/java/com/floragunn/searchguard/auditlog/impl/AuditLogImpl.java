@@ -23,6 +23,8 @@ import java.util.concurrent.TimeUnit;
 
 import org.elasticsearch.SpecialPermission;
 import org.elasticsearch.client.Client;
+import org.elasticsearch.cluster.ClusterService;
+import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.inject.Provider;
 import org.elasticsearch.common.logging.ESLogger;
@@ -54,13 +56,14 @@ public final class AuditLogImpl extends AbstractAuditLog {
     }
 
     @Inject
-    public AuditLogImpl(final Settings settings, Provider<Client> clientProvider) {
-    	super(settings);
+    public AuditLogImpl(final Settings settings, Provider<Client> clientProvider,
+            final IndexNameExpressionResolver resolver, final Provider<ClusterService> clusterService) {
+    	super(settings, resolver, clusterService);
         String type = settings.get("searchguard.audit.type", null);
         // thread pool size of 0 means we directly hand the message to the delegate,
         // skipping the thread pool altogether
         Integer threadPoolSize = settings.getAsInt("searchguard.audit.threadpool.size", 10);
-        if (threadPoolSize == 0) {
+        if (threadPoolSize <= 0) {
         	this.useExecutorService = false;
         	this.pool = null;
         } else {
@@ -72,27 +75,32 @@ public final class AuditLogImpl extends AbstractAuditLog {
 		if (type != null) {
 			switch (type.toLowerCase()) {
 			case "internal_elasticsearch":
-				delegate = new ESAuditLog(settings, clientProvider, index, doctype);
+				delegate = new ESAuditLog(settings, clientProvider, index, doctype, resolver, clusterService);
 				break;
 			case "external_elasticsearch":
 				try {
-					delegate = new HttpESAuditLog(settings);
+					delegate = new HttpESAuditLog(settings, resolver, clusterService);
 				} catch (Exception e) {
 					log.error("Audit logging unavailable: Unable to setup HttpESAuditLog due to {}", e, e.toString());
 				}
 				break;
 			case "webhook":
-				delegate = new WebhookAuditLog(settings);
+				delegate = new WebhookAuditLog(settings, resolver, clusterService);
 				break;				
 			case "debug":
-				delegate = new DebugAuditLog(settings);
+				delegate = new DebugAuditLog(settings, resolver, clusterService);
 				break;
 			default:
                 try {
                     Class<?> delegateClass = Class.forName(type);
 
                     if (AbstractAuditLog.class.isAssignableFrom(delegateClass)) {
-                        delegate = (AbstractAuditLog) delegateClass.getConstructor(Settings.class).newInstance(settings);
+                        try {
+                            delegate = (AbstractAuditLog) delegateClass.getConstructor(Settings.class).newInstance(settings);
+                        } catch (Throwable e) {
+                            delegate = (AbstractAuditLog) delegateClass.getConstructor(Settings.class, IndexNameExpressionResolver.class, Provider.class)
+                                    .newInstance(settings, resolver, clusterService);
+                        }
                     } else {
                         log.error("Audit logging unavailable: '{}' is not a subclass of {}", type, AbstractAuditLog.class.getSimpleName());
                     }
@@ -139,21 +147,23 @@ public final class AuditLogImpl extends AbstractAuditLog {
     @Override
     public void close() throws IOException {
         
-        pool.shutdown(); // Disable new tasks from being submitted
-                
-        try {
-          // Wait a while for existing tasks to terminate
-          if (!pool.awaitTermination(60, TimeUnit.SECONDS)) {
-            pool.shutdownNow(); // Cancel currently executing tasks
-            // Wait a while for tasks to respond to being cancelled
-            if (!pool.awaitTermination(60, TimeUnit.SECONDS))
-                log.error("Pool did not terminate");
-          }
-        } catch (InterruptedException ie) {
-          // (Re-)Cancel if current thread also interrupted
-          pool.shutdownNow();
-          // Preserve interrupt status
-          Thread.currentThread().interrupt();
+        if(pool != null) {
+            pool.shutdown(); // Disable new tasks from being submitted
+                    
+            try {
+              // Wait a while for existing tasks to terminate
+              if (!pool.awaitTermination(60, TimeUnit.SECONDS)) {
+                pool.shutdownNow(); // Cancel currently executing tasks
+                // Wait a while for tasks to respond to being cancelled
+                if (!pool.awaitTermination(60, TimeUnit.SECONDS))
+                    log.error("Pool did not terminate");
+              }
+            } catch (InterruptedException ie) {
+              // (Re-)Cancel if current thread also interrupted
+              pool.shutdownNow();
+              // Preserve interrupt status
+              Thread.currentThread().interrupt();
+            }
         }
     	if(delegate != null) {
         	try {

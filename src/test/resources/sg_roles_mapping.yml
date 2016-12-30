@@ -1,0 +1,11 @@
+sg_all_access:
+  users:
+    - admin
+    
+sg_public:
+  users:
+    - '*'
+
+sg_worf:
+  users:
+    - worf

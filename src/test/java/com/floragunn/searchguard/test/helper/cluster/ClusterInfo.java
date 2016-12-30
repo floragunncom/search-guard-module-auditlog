@@ -12,29 +12,18 @@
  * 
  */
 
-package com.floragunn.searchguard.auditlog.impl;
+package com.floragunn.searchguard.test.helper.cluster;
 
-import org.elasticsearch.common.settings.Settings;
+import java.util.HashSet;
+import java.util.Set;
 
-public class MockWebhookAuditLog extends WebhookAuditLog {
-	
-	String payload = null;
-	String url = null;
-	
-	MockWebhookAuditLog(Settings settings) {
-		super(settings, null, null);
-	}
+import org.elasticsearch.common.transport.InetSocketTransportAddress;
 
-	@Override
-	boolean doPost(String url, String payload) {
-		this.payload = payload;
-		return true;
-	}
-	
-	
-	@Override
-	boolean doGet(String url) {
-		this.url = url;
-		return true;
-	}
+public class ClusterInfo {
+	public int numNodes;
+	public String httpHost = null;
+	public int httpPort = -1;
+	public Set<InetSocketTransportAddress> httpAdresses = new HashSet<InetSocketTransportAddress>();
+	public String nodeHost;
+	public int nodePort;
 }

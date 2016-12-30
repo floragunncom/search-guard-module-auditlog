@@ -1,3 +1,17 @@
+/*
+ * Copyright 2016 by floragunn UG (haftungsbeschränkt) - All rights reserved
+ * 
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed here is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * 
+ * This software is free of charge for non-commercial and academic use. 
+ * For commercial use in a production environment you have to obtain a license 
+ * from https://floragunn.com
+ * 
+ */
+
 package com.floragunn.searchguard.auditlog.impl;
 
 import static org.hamcrest.CoreMatchers.containsString;
@@ -41,7 +55,7 @@ public class DisabledCategoriesTest extends AbstractUnitTest  {
 		Builder settingsBuilder = Settings.settingsBuilder();
 		settingsBuilder.put("searchguard.audit.type", "debug");
 		settingsBuilder.put("searchguard.audit.config.disabled_categories", "nonexistant");
-		AuditLogImpl auditLog = new AuditLogImpl(settingsBuilder.build(), null);
+		AuditLogImpl auditLog = new AuditLogImpl(settingsBuilder.build(), null, null, null);
 		logAll(auditLog);
 		
 		auditLog.pool.shutdown();
@@ -57,7 +71,7 @@ public class DisabledCategoriesTest extends AbstractUnitTest  {
 		Builder settingsBuilder  = Settings.settingsBuilder();
 		settingsBuilder.put("searchguard.audit.type", "debug");
 		settingsBuilder.put("searchguard.audit.config.disabled_categories", "nonexistant, bad_headers");
-		AuditLog auditLog = new AuditLogImpl(settingsBuilder.build(), null);
+		AuditLog auditLog = new AuditLogImpl(settingsBuilder.build(), null, null, null);
 		logAll(auditLog);
 		String result = capture.getResult();
 		Assert.assertFalse(categoriesPresentInLog(result, Category.BAD_HEADERS));		
@@ -70,7 +84,7 @@ public class DisabledCategoriesTest extends AbstractUnitTest  {
 		
 		// we use the debug output, no ES client is needed. Also, we 
 		// do not need to close.		
-		AuditLogImpl auditLog = new AuditLogImpl(settingsBuilder.build(), null);
+		AuditLogImpl auditLog = new AuditLogImpl(settingsBuilder.build(), null, null, null);
 		
 		logAll(auditLog);
 		
@@ -131,7 +145,7 @@ public class DisabledCategoriesTest extends AbstractUnitTest  {
 	
 		// we use the debug output, no ES client is needed. Also, we 
 		// do not need to close.		
-		AuditLogImpl auditLog = new AuditLogImpl(settingsBuilder.build(), null);
+		AuditLogImpl auditLog = new AuditLogImpl(settingsBuilder.build(), null, null, null);
 		
 		logAll(auditLog);
 		
@@ -148,9 +162,11 @@ public class DisabledCategoriesTest extends AbstractUnitTest  {
 	}
 		
 	protected boolean categoriesPresentInLog(String result, Category ... categories) {
-		
+		// since we're logging a JSON structure, whitespaces between keys and
+		// values must not matter
+		result = result.replaceAll(" ", "");
 		for (Category category : categories) {
-			if(!result.contains("\""+AuditMessage.AuditMessageKey.CATEGORY.getName()+"\":\""+category.name()+"\"")) {
+			if(!result.contains("\""+AuditMessage.AuditMessageKey.CATEGORY+"\":\""+category.name()+"\"")) {
 				return false;
 			}
 		}

@@ -1,3 +1,17 @@
+/*
+ * Copyright 2016 by floragunn UG (haftungsbeschränkt) - All rights reserved
+ * 
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed here is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * 
+ * This software is free of charge for non-commercial and academic use. 
+ * For commercial use in a production environment you have to obtain a license 
+ * from https://floragunn.com
+ * 
+ */
+
 package com.floragunn.searchguard.auditlog.impl;
 
 import java.io.FileInputStream;
@@ -11,7 +25,6 @@ import java.util.concurrent.TimeUnit;
 
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
-import javax.net.ssl.SSLSocketFactory;
 import javax.net.ssl.TrustManagerFactory;
 
 import org.apache.http.entity.ContentType;
@@ -48,7 +61,7 @@ public class WebhookAuditLogTest extends AbstractUnitTest {
 
 		// provide no format, defaults to TEXT
 		Settings settings = Settings.settingsBuilder()
-				.put("searchguard.audit.config.webhook_url", url)
+				.put("searchguard.audit.config.webhook.url", url)
 				.build();
 		MockWebhookAuditLog auditlog = new MockWebhookAuditLog(settings);
 		auditlog.save(msg);
@@ -58,8 +71,8 @@ public class WebhookAuditLogTest extends AbstractUnitTest {
 
 		// provide faulty format, defaults to TEXT
 		settings = Settings.settingsBuilder()
-				.put("searchguard.audit.config.webhook_url", url)
-				.put("searchguard.audit.config.webhook_format", "idonotexist")
+				.put("searchguard.audit.config.webhook.url", url)
+				.put("searchguard.audit.config.webhook.format", "idonotexist")
 				.build();
 		auditlog = new MockWebhookAuditLog(settings);
 		auditlog.save(msg);
@@ -70,8 +83,8 @@ public class WebhookAuditLogTest extends AbstractUnitTest {
 
 		// TEXT
 		settings = Settings.settingsBuilder()
-				.put("searchguard.audit.config.webhook_url", url)
-				.put("searchguard.audit.config.webhook_format", "text")
+				.put("searchguard.audit.config.webhook.url", url)
+				.put("searchguard.audit.config.webhook.format", "text")
 				.build();
 		auditlog = new MockWebhookAuditLog(settings);
 		auditlog.save(msg);
@@ -83,8 +96,8 @@ public class WebhookAuditLogTest extends AbstractUnitTest {
 
 		// JSON
 		settings = Settings.settingsBuilder()
-				.put("searchguard.audit.config.webhook_url", url)
-				.put("searchguard.audit.config.webhook_format", "json")
+				.put("searchguard.audit.config.webhook.url", url)
+				.put("searchguard.audit.config.webhook.format", "json")
 				.build();
 		auditlog = new MockWebhookAuditLog(settings);
 		auditlog.save(msg);
@@ -97,8 +110,8 @@ public class WebhookAuditLogTest extends AbstractUnitTest {
 
 		// SLACK
 		settings = Settings.settingsBuilder()
-				.put("searchguard.audit.config.webhook_url", url)
-				.put("searchguard.audit.config.webhook_format", "slack")
+				.put("searchguard.audit.config.webhook.url", url)
+				.put("searchguard.audit.config.webhook.format", "slack")
 				.build();
 		auditlog = new MockWebhookAuditLog(settings);
 		auditlog.save(msg);
@@ -116,8 +129,8 @@ public class WebhookAuditLogTest extends AbstractUnitTest {
 		String url = "faultyurl";
 
 		final Settings settings = Settings.settingsBuilder()
-				.put("searchguard.audit.config.webhook_url", url)
-				.put("searchguard.audit.config.webhook_format", "slack")
+				.put("searchguard.audit.config.webhook.url", url)
+				.put("searchguard.audit.config.webhook.format", "slack")
 				.build();
 
 		MockWebhookAuditLog auditlog = new MockWebhookAuditLog(settings);
@@ -133,12 +146,12 @@ public class WebhookAuditLogTest extends AbstractUnitTest {
 		String url = "http://localhost:8080/endpoint";
 
 		Settings settings = Settings.settingsBuilder()
-				.put("searchguard.audit.config.webhook_url", url)
-				.put("searchguard.audit.config.webhook_format", "slack")
+				.put("searchguard.audit.config.webhook.url", url)
+				.put("searchguard.audit.config.webhook.format", "slack")
 				.build();
 
 		// just make sure no exception is thrown
-		WebhookAuditLog auditlog = new WebhookAuditLog(settings);
+		WebhookAuditLog auditlog = new WebhookAuditLog(settings, null, null);
 		AuditMessage msg = MockAuditMessageFactory.validAuditMessage();
 		auditlog.save(msg);
 	}
@@ -159,11 +172,11 @@ public class WebhookAuditLogTest extends AbstractUnitTest {
 
 		// SLACK
 		Settings settings = Settings.settingsBuilder()
-				.put("searchguard.audit.config.webhook_url", url)
-				.put("searchguard.audit.config.webhook_format", "slack")
+				.put("searchguard.audit.config.webhook.url", url)
+				.put("searchguard.audit.config.webhook.format", "slack")
 				.build();
 
-		WebhookAuditLog auditlog = new WebhookAuditLog(settings);
+		WebhookAuditLog auditlog = new WebhookAuditLog(settings, null, null);
 		AuditMessage msg = MockAuditMessageFactory.validAuditMessage();
 		auditlog.save(msg);
 		Assert.assertTrue(handler.method.equals("POST"));
@@ -173,24 +186,25 @@ public class WebhookAuditLogTest extends AbstractUnitTest {
 
 		// TEXT
 		settings = Settings.settingsBuilder()
-				.put("searchguard.audit.config.webhook_url", url)
-				.put("searchguard.audit.config.webhook_format", "texT")
+				.put("searchguard.audit.config.webhook.url", url)
+				.put("searchguard.audit.config.webhook.format", "texT")
 				.build();
 
-		auditlog = new WebhookAuditLog(settings);
+		auditlog = new WebhookAuditLog(settings, null, null);
 		auditlog.save(msg);
 		Assert.assertTrue(handler.method.equals("POST"));
 		Assert.assertTrue(handler.body != null);
+		System.out.println(handler.body);
 		Assert.assertFalse(handler.body.contains("{"));
 		assertStringContainsAllKeysAndValues(handler.body);
 
 		// JSON
 		settings = Settings.settingsBuilder()
-				.put("searchguard.audit.config.webhook_url", url)
-				.put("searchguard.audit.config.webhook_format", "JSon")
+				.put("searchguard.audit.config.webhook.url", url)
+				.put("searchguard.audit.config.webhook.format", "JSon")
 				.build();
 
-		auditlog = new WebhookAuditLog(settings);
+		auditlog = new WebhookAuditLog(settings, null, null);
 		auditlog.save(msg);
 		Assert.assertTrue(handler.method.equals("POST"));
 		Assert.assertTrue(handler.body != null);
@@ -199,11 +213,11 @@ public class WebhookAuditLogTest extends AbstractUnitTest {
 
 		// URL POST
 		settings = Settings.settingsBuilder()
-				.put("searchguard.audit.config.webhook_url", url)
-				.put("searchguard.audit.config.webhook_format", "URL_PARAMETER_POST")
+				.put("searchguard.audit.config.webhook.url", url)
+				.put("searchguard.audit.config.webhook.format", "URL_PARAMETER_POST")
 				.build();
 
-		auditlog = new WebhookAuditLog(settings);
+		auditlog = new WebhookAuditLog(settings, null, null);
 		auditlog.save(msg);
 		Assert.assertTrue(handler.method.equals("POST"));
 		Assert.assertTrue(handler.body.equals(""));
@@ -212,11 +226,11 @@ public class WebhookAuditLogTest extends AbstractUnitTest {
 
 		// URL GET
 		settings = Settings.settingsBuilder()
-				.put("searchguard.audit.config.webhook_url", url)
-				.put("searchguard.audit.config.webhook_format", "URL_PARAMETER_GET")
+				.put("searchguard.audit.config.webhook.url", url)
+				.put("searchguard.audit.config.webhook.format", "URL_PARAMETER_GET")
 				.build();
 
-		auditlog = new WebhookAuditLog(settings);
+		auditlog = new WebhookAuditLog(settings, null, null);
 		auditlog.save(msg);
 		Assert.assertTrue(handler.method.equals("GET"));
 		Assert.assertTrue(handler.body.equals(""));
@@ -241,11 +255,11 @@ public class WebhookAuditLogTest extends AbstractUnitTest {
 		String url = "https://localhost:8081/endpoint";
 
 		Settings settings = Settings.settingsBuilder()
-				.put("searchguard.audit.config.webhook_url", url)
-				.put("searchguard.audit.config.webhook_format", "slack")
+				.put("searchguard.audit.config.webhook.url", url)
+				.put("searchguard.audit.config.webhook.format", "slack")
 				.build();
 
-		WebhookAuditLog auditlog = new WebhookAuditLog(settings);
+		WebhookAuditLog auditlog = new WebhookAuditLog(settings, null, null);
 		AuditMessage msg = MockAuditMessageFactory.validAuditMessage();
 		auditlog.save(msg);
 		Assert.assertTrue(handler.method == null);
@@ -272,26 +286,26 @@ public class WebhookAuditLogTest extends AbstractUnitTest {
 		
 		// try with ssl verification on, must fail
 		Settings settings = Settings.settingsBuilder()
-				.put("searchguard.audit.config.webhook_url", url)
-				.put("searchguard.audit.config.webhook_format", "slack")
+				.put("searchguard.audit.config.webhook.url", url)
+				.put("searchguard.audit.config.webhook.format", "slack")
 				.build();
 
-		WebhookAuditLog auditlog = new WebhookAuditLog(settings);
+		WebhookAuditLog auditlog = new WebhookAuditLog(settings, null, null);
 		AuditMessage msg = MockAuditMessageFactory.validAuditMessage();
 		auditlog.save(msg);
 		Assert.assertTrue(handler.method == null);
 		Assert.assertTrue(handler.body == null);
 		Assert.assertTrue(handler.uri == null);
 
-		// wrong key for ssl.verify, must be boolean
+		// wrong key for webhook.ssl.verify, must be boolean
 		// default is true, so this call must nor succeed
 		handler.reset();
 		settings = Settings.settingsBuilder()
-				.put("searchguard.audit.config.webhook_url", url)
-				.put("searchguard.audit.config.webhook_format", "slack")
-				.put("searchguard.audit.config.ssl.verify", "foobar")
+				.put("searchguard.audit.config.webhook.url", url)
+				.put("searchguard.audit.config.webhook.format", "slack")
+				.put("searchguard.audit.config.webhook.ssl.verify", "foobar")
 				.build();
-		auditlog = new WebhookAuditLog(settings);
+		auditlog = new WebhookAuditLog(settings, null, null);
 		auditlog.save(msg);
 		Assert.assertTrue(handler.method == null);
 		Assert.assertTrue(handler.body == null);
@@ -300,11 +314,11 @@ public class WebhookAuditLogTest extends AbstractUnitTest {
 		// disable ssl verification, call must succeed now
 		handler.reset();
 		settings = Settings.settingsBuilder()
-				.put("searchguard.audit.config.webhook_url", url)
-				.put("searchguard.audit.config.webhook_format", "jSoN")
-				.put("searchguard.audit.config.ssl.verify", false)
+				.put("searchguard.audit.config.webhook.url", url)
+				.put("searchguard.audit.config.webhook.format", "jSoN")
+				.put("searchguard.audit.config.webhook.ssl.verify", false)
 				.build();
-		auditlog = new WebhookAuditLog(settings);
+		auditlog = new WebhookAuditLog(settings, null, null);
 		auditlog.save(msg);
 		Assert.assertTrue(handler.method.equals("POST"));
 		Assert.assertTrue(handler.body != null);
@@ -340,10 +354,19 @@ public class WebhookAuditLogTest extends AbstractUnitTest {
 	}
 
 	private void assertStringContainsAllKeysAndValues(String in) {
-		AuditMessageKey[] allKeys = AuditMessageKey.values();
-		for (AuditMessageKey auditMessageKey : allKeys) {
-			Assert.assertTrue(in.contains(auditMessageKey.getName()));
-		}
+		Assert.assertTrue(in.contains(AuditMessageKey.FORMAT_VERSION));
+		Assert.assertTrue(in.contains(AuditMessageKey.DATE));
+		Assert.assertTrue(in.contains(AuditMessageKey.CATEGORY));
+		Assert.assertTrue(in.contains(AuditMessageKey.REQUEST_USER));
+		Assert.assertTrue(in.contains(AuditMessageKey.REMOTE_ADDRESS));
+		Assert.assertTrue(in.contains(AuditMessageKey.REASON));
+		Assert.assertTrue(in.contains(AuditMessageKey.DETAILS));
+		Assert.assertTrue(in.contains(AuditMessageKey.REQUEST_CLASS));
+		Assert.assertTrue(in.contains(AuditMessageKey.REQUEST_CONTEXT));
+		Assert.assertTrue(in.contains(AuditMessageKey.REQUEST_HEADERS));
+		Assert.assertTrue(in.contains(AuditMessageKey.PRINCIPAL));
+		Assert.assertTrue(in.contains(AuditMessageKey.UTC_TIMESTAMP));
+		Assert.assertTrue(in.contains(AuditMessageKey.TYPE));			
 		Assert.assertTrue(in.contains(Category.FAILED_LOGIN.name()));
 		Assert.assertTrue(in.contains("Forbidden"));
 		Assert.assertTrue(in.contains("Details"));

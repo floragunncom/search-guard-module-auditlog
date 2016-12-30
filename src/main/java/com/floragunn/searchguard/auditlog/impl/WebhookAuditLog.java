@@ -1,3 +1,17 @@
+/*
+ * Copyright 2016 by floragunn UG (haftungsbeschränkt) - All rights reserved
+ * 
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed here is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * 
+ * This software is free of charge for non-commercial and academic use. 
+ * For commercial use in a production environment you have to obtain a license 
+ * from https://floragunn.com
+ * 
+ */
+
 package com.floragunn.searchguard.auditlog.impl;
 
 import java.io.IOException;
@@ -21,7 +35,10 @@ import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.ssl.SSLContextBuilder;
 import org.apache.http.ssl.TrustStrategy;
+import org.elasticsearch.cluster.ClusterService;
+import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.common.Strings;
+import org.elasticsearch.common.inject.Provider;
 import org.elasticsearch.common.settings.Settings;
 
 class WebhookAuditLog extends AbstractAuditLog {
@@ -33,14 +50,15 @@ class WebhookAuditLog extends AbstractAuditLog {
 	String webhookUrl = null;
 	WebhookFormat webhookFormat = null;
 
-	WebhookAuditLog(final Settings settings) {
-		super(settings);
+	WebhookAuditLog(final Settings settings,
+	        final IndexNameExpressionResolver resolver, final Provider<ClusterService> clusterService) {
+		super(settings, resolver, clusterService);
 		Settings auditSettings = settings.getAsSettings("searchguard.audit.config");
 		
-		String webhookUrl = auditSettings.get("webhook_url");
-		String format = auditSettings.get("webhook_format");
+		String webhookUrl = auditSettings.get("webhook.url");
+		String format = auditSettings.get("webhook.format");
 		
-		Boolean verifySSL = auditSettings.getAsBoolean("ssl.verify", Boolean.TRUE);
+		Boolean verifySSL = auditSettings.getAsBoolean("webhook.ssl.verify", Boolean.TRUE);
 		httpClient = getInsecureHttpClient(verifySSL);
 		
 		if(httpClient == null) {
@@ -49,7 +67,7 @@ class WebhookAuditLog extends AbstractAuditLog {
 		}
 		
 		if (Strings.isEmpty(webhookUrl)) {
-			log.error("searchguard.audit.config.webhook_url not provided, webhook audit log will not work");
+			log.error("searchguard.audit.config.webhook.url not provided, webhook audit log will not work");
 			return;
 		} else {
 			try {
@@ -62,7 +80,7 @@ class WebhookAuditLog extends AbstractAuditLog {
 		}
 
 		if (Strings.isEmpty(format)) {
-			log.warn("searchguard.audit.config.webhook_format not provided, falling back to 'text'");
+			log.warn("searchguard.audit.config.webhook.format not provided, falling back to 'text'");
 			webhookFormat = WebhookFormat.TEXT;
 		} else {
 			try {
