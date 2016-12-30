@@ -69,7 +69,7 @@ class AuditMessage {
 	public Map<String, Object> getAsMapWithStringKeys() {
 		Map<String, Object> stringMap = new HashMap<>();
 		for (Entry<AuditMessageKey, Object> entry : this.auditInfo.entrySet()) {
-			stringMap.put(entry.getKey().name, entry.getValue());
+			stringMap.put(entry.getKey().getName(), entry.getValue());
 		}
 		return stringMap;
 	}
@@ -140,17 +140,17 @@ class AuditMessage {
 
 	enum AuditMessageKey {
 
-		DATE("Date"),
-		CATEGORY("Category"),
-		REQUEST_USER("Request User"),
-		REMOTE_ADDRESS("Remote Address"),
-		REASON("Reason"),
-		DETAILS("Details"),
-		REQUEST_CLASS("Request class"),
-		REQUEST_CONTEXT("Context"),
-		REQUEST_HEADERS("Headers"),
-		PRINCIPAL("TLS Principal");
-
+		DATE("audit_date"),
+		CATEGORY("audit_category"),
+		REQUEST_USER("audit_request_user"),
+		REMOTE_ADDRESS("audit_remote_address"),
+		REASON("audit_reason"),
+		DETAILS("audit_details"),
+		REQUEST_CLASS("audit_request_class"),
+		REQUEST_CONTEXT("audit_request_context"),
+		REQUEST_HEADERS("audit_request_headers"),
+		PRINCIPAL("audit_principal");
+		
 		private String name;
 
 		private AuditMessageKey(String name) {

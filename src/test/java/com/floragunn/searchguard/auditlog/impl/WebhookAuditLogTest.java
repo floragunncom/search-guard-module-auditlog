@@ -1,7 +1,18 @@
 package com.floragunn.searchguard.auditlog.impl;
 
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
+import java.security.GeneralSecurityException;
+import java.security.KeyStore;
+import java.util.concurrent.TimeUnit;
+
+import javax.net.ssl.KeyManagerFactory;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLSocketFactory;
+import javax.net.ssl.TrustManagerFactory;
 
 import org.apache.http.entity.ContentType;
 import org.apache.http.impl.bootstrap.HttpServer;
@@ -20,11 +31,12 @@ public class WebhookAuditLogTest extends AbstractUnitTest {
 	public void invalidConfTest() throws Exception {
 		AuditMessage msg = MockAuditMessageFactory.validAuditMessage();
 
-		// provide no format, defaults to TEXT
+		// provide no settings, audit log not available
 		Settings settings = Settings.settingsBuilder().build();
 		MockWebhookAuditLog auditlog = new MockWebhookAuditLog(settings);
 		auditlog.save(msg);
 		Assert.assertEquals(null, auditlog.webhookFormat);
+
 	}
 
 	@SuppressWarnings("resource")
@@ -93,7 +105,7 @@ public class WebhookAuditLogTest extends AbstractUnitTest {
 
 	@Test
 	@SuppressWarnings("resource")
-	public void postFaultyServerTest() throws Exception {
+	public void invalidUrlTest() throws Exception {
 
 		String url = "faultyurl";
 
@@ -111,7 +123,22 @@ public class WebhookAuditLogTest extends AbstractUnitTest {
 	}
 
 	@Test
-	public void postTestHttp() throws Exception {
+	public void noServerRunningHttpTest() throws Exception {
+		String url = "http://localhost:8080/endpoint";
+
+		Settings settings = Settings.settingsBuilder()
+				.put("searchguard.audit.config.webhook_url", url)
+				.put("searchguard.audit.config.webhook_format", "slack")
+				.build();
+
+		// just make sure no exception is thrown
+		WebhookAuditLog auditlog = new WebhookAuditLog(settings);
+		AuditMessage msg = MockAuditMessageFactory.validAuditMessage();
+		auditlog.save(msg);
+	}
+
+	@Test
+	public void postGetHttpTest() throws Exception {
 		TestHttpHandler handler = new TestHttpHandler();
 
 		HttpServer server = ServerBootstrap.bootstrap()
@@ -123,7 +150,7 @@ public class WebhookAuditLogTest extends AbstractUnitTest {
 		server.start();
 
 		String url = "http://localhost:8080/endpoint";
-		
+
 		// SLACK
 		Settings settings = Settings.settingsBuilder()
 				.put("searchguard.audit.config.webhook_url", url)
@@ -150,7 +177,7 @@ public class WebhookAuditLogTest extends AbstractUnitTest {
 		Assert.assertTrue(handler.body != null);
 		Assert.assertFalse(handler.body.contains("{"));
 		assertStringContainsAllKeysAndValues(handler.body);
-				
+
 		// JSON
 		settings = Settings.settingsBuilder()
 				.put("searchguard.audit.config.webhook_url", url)
@@ -163,7 +190,7 @@ public class WebhookAuditLogTest extends AbstractUnitTest {
 		Assert.assertTrue(handler.body != null);
 		Assert.assertTrue(handler.body.contains("{"));
 		assertStringContainsAllKeysAndValues(handler.body);
-		
+
 		// URL POST
 		settings = Settings.settingsBuilder()
 				.put("searchguard.audit.config.webhook_url", url)
@@ -176,7 +203,7 @@ public class WebhookAuditLogTest extends AbstractUnitTest {
 		Assert.assertTrue(handler.body.equals(""));
 		Assert.assertTrue(!handler.body.contains("{"));
 		assertStringContainsAllKeysAndValues(URLDecoder.decode(handler.uri, StandardCharsets.UTF_8.displayName()));
-		
+
 		// URL GET
 		settings = Settings.settingsBuilder()
 				.put("searchguard.audit.config.webhook_url", url)
@@ -189,6 +216,121 @@ public class WebhookAuditLogTest extends AbstractUnitTest {
 		Assert.assertTrue(handler.body.equals(""));
 		Assert.assertTrue(!handler.body.contains("{"));
 		assertStringContainsAllKeysAndValues(URLDecoder.decode(handler.uri, StandardCharsets.UTF_8.displayName()));
+
+		server.stop();
+	}
+
+	@Test
+	public void httpsTestWithoutTLSServer() throws Exception {
+
+		TestHttpHandler handler = new TestHttpHandler();
+
+		HttpServer server = ServerBootstrap.bootstrap()
+				.setListenerPort(8080)
+				.setServerInfo("Test/1.1")
+				.registerHandler("*", handler)
+				.create();
+
+		server.start();
+
+		String url = "https://localhost:8080/endpoint";
+
+		Settings settings = Settings.settingsBuilder()
+				.put("searchguard.audit.config.webhook_url", url)
+				.put("searchguard.audit.config.webhook_format", "slack")
+				.build();
+
+		WebhookAuditLog auditlog = new WebhookAuditLog(settings);
+		AuditMessage msg = MockAuditMessageFactory.validAuditMessage();
+		auditlog.save(msg);
+		// TODO: What to assert here?
+		server.stop();
+
+	}
+
+	@Test
+	public void httpsTest() throws Exception {
+
+		TestHttpHandler handler = new TestHttpHandler();
+
+		HttpServer server = ServerBootstrap.bootstrap()
+				.setListenerPort(8080)
+				.setServerInfo("Test/1.1")
+				.setSslContext(createSSLContext())
+				.registerHandler("*", handler)
+				.create();
+
+		server.start();
+
+		String url = "https://localhost:8080/endpoint";
+		
+		// try with ssl verification on, must fail
+		Settings settings = Settings.settingsBuilder()
+				.put("searchguard.audit.config.webhook_url", url)
+				.put("searchguard.audit.config.webhook_format", "slack")
+				.build();
+
+		WebhookAuditLog auditlog = new WebhookAuditLog(settings);
+		AuditMessage msg = MockAuditMessageFactory.validAuditMessage();
+		auditlog.save(msg);
+		Assert.assertTrue(handler.method == null);
+		Assert.assertTrue(handler.body == null);
+		Assert.assertTrue(handler.uri == null);
+
+		// wrong key for ssl.verify, must be boolean
+		// default is true, so this call must nor succeed
+		handler.reset();
+		settings = Settings.settingsBuilder()
+				.put("searchguard.audit.config.webhook_url", url)
+				.put("searchguard.audit.config.webhook_format", "slack")
+				.put("searchguard.audit.config.ssl.verify", "foobar")
+				.build();
+		auditlog = new WebhookAuditLog(settings);
+		auditlog.save(msg);
+		Assert.assertTrue(handler.method == null);
+		Assert.assertTrue(handler.body == null);
+		Assert.assertTrue(handler.uri == null);
+
+		// disable ssl verification, call must succeed now
+		handler.reset();
+		settings = Settings.settingsBuilder()
+				.put("searchguard.audit.config.webhook_url", url)
+				.put("searchguard.audit.config.webhook_format", "jSoN")
+				.put("searchguard.audit.config.ssl.verify", false)
+				.build();
+		auditlog = new WebhookAuditLog(settings);
+		auditlog.save(msg);
+		Assert.assertTrue(handler.method.equals("POST"));
+		Assert.assertTrue(handler.body != null);
+		Assert.assertTrue(handler.body.contains("{"));
+		assertStringContainsAllKeysAndValues(handler.body);
+				
+		server.stop();
+	}
+	
+	// for TLS support on our in-memory server
+	private SSLContext createSSLContext() {
+		try {
+			final TrustManagerFactory tmf = TrustManagerFactory.getInstance(TrustManagerFactory
+					.getDefaultAlgorithm());
+			final KeyStore trustStore = KeyStore.getInstance("JKS");
+			InputStream trustStream = new FileInputStream(getAbsoluteFilePathFromClassPath("truststore.jks"));
+			trustStore.load(trustStream, "changeit".toCharArray());
+			tmf.init(trustStore);
+
+			final KeyManagerFactory kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());			
+			final KeyStore keyStore = KeyStore.getInstance("JKS");
+			InputStream keyStream = new FileInputStream(getAbsoluteFilePathFromClassPath("node-0-keystore.jks"));
+
+			keyStore.load(keyStream, "changeit".toCharArray());
+			kmf.init(keyStore, "changeit".toCharArray());
+
+			SSLContext sslContext = SSLContext.getInstance("TLSv1.2");
+			sslContext.init(kmf.getKeyManagers(), tmf.getTrustManagers(), null);
+			return sslContext;
+		} catch (final GeneralSecurityException | IOException exc) {
+			throw new RuntimeException(exc);
+		}
 	}
 
 	private void assertStringContainsAllKeysAndValues(String in) {

@@ -30,5 +30,10 @@ public class TestHttpHandler implements HttpRequestHandler {
 			body = EntityUtils.toString(entity, StandardCharsets.UTF_8);
 		}
 	}
-
+	
+	public void reset() {
+		this.body = null;
+		this.uri = null;
+		this.method = null;
+	}
 }

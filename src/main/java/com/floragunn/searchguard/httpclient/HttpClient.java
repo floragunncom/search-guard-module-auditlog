@@ -38,6 +38,7 @@ import javax.xml.bind.DatatypeConverter;
 
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpHeaders;
+import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
@@ -163,7 +164,7 @@ public class HttpClient implements Closeable {
             XContentParser parser = null;
             try {
                 response = client.execute(indexRequest);
-
+                
                 if (response != null && response.getStatusLine() != null && response.getStatusLine().getStatusCode() < 400) {
 
                     // TODO check successfull at least 1
@@ -219,6 +220,7 @@ public class HttpClient implements Closeable {
 
         final org.apache.http.impl.client.HttpClientBuilder hcb = HttpClients.custom();
 
+        
         if (ssl) {
 
             final SSLContextBuilder sslContextbBuilder = SSLContexts.custom().useTLS();
@@ -274,8 +276,17 @@ public class HttpClient implements Closeable {
         if (basicCredentials != null) {
             hcb.setDefaultHeaders(Lists.newArrayList(new BasicHeader(HttpHeaders.AUTHORIZATION, "Basic " + basicCredentials)));
         }
-
-        return hcb.build();
+        
+        // TODO: set a timeout until we have a proper way to deal with back pressure
+        int timeout = 5;
+        
+        RequestConfig config = RequestConfig.custom()
+          .setConnectTimeout(timeout * 1000)
+          .setConnectionRequestTimeout(timeout * 1000)
+          .setSocketTimeout(timeout * 1000).build();
+        
+        return hcb.setDefaultRequestConfig(config).build();
+        
     }
 
     @Override
