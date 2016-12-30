@@ -216,8 +216,7 @@ public class WebhookAuditLogTest extends AbstractUnitTest {
 		Assert.assertTrue(handler.body.equals(""));
 		Assert.assertTrue(!handler.body.contains("{"));
 		assertStringContainsAllKeysAndValues(URLDecoder.decode(handler.uri, StandardCharsets.UTF_8.displayName()));
-
-		server.stop();
+		server.shutdown(3l, TimeUnit.SECONDS);
 	}
 
 	@Test
@@ -243,9 +242,10 @@ public class WebhookAuditLogTest extends AbstractUnitTest {
 		WebhookAuditLog auditlog = new WebhookAuditLog(settings);
 		AuditMessage msg = MockAuditMessageFactory.validAuditMessage();
 		auditlog.save(msg);
-		// TODO: What to assert here?
-		server.stop();
-
+		Assert.assertTrue(handler.method == null);
+		Assert.assertTrue(handler.body == null);
+		Assert.assertTrue(handler.uri == null);
+		server.shutdown(3l, TimeUnit.SECONDS);
 	}
 
 	@Test
@@ -305,7 +305,7 @@ public class WebhookAuditLogTest extends AbstractUnitTest {
 		Assert.assertTrue(handler.body.contains("{"));
 		assertStringContainsAllKeysAndValues(handler.body);
 				
-		server.stop();
+		server.shutdown(3l, TimeUnit.SECONDS);
 	}
 	
 	// for TLS support on our in-memory server
