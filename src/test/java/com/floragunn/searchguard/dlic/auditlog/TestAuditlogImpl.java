@@ -12,19 +12,26 @@
  * 
  */
 
-package com.floragunn.searchguard.auditlog.impl;
+package com.floragunn.searchguard.dlic.auditlog;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.elasticsearch.cluster.ClusterService;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.common.inject.Provider;
 import org.elasticsearch.common.settings.Settings;
 
-public class DebugAuditLog extends AbstractAuditLog {
+import com.floragunn.searchguard.auditlog.impl.AbstractAuditLog;
+import com.floragunn.searchguard.auditlog.impl.AuditMessage;
 
-    public DebugAuditLog(final Settings settings,
-            final IndexNameExpressionResolver resolver, final Provider<ClusterService> clusterService) {
+public class TestAuditlogImpl extends AbstractAuditLog {
+
+    public static List<AuditMessage> messages = new ArrayList<AuditMessage>(100);
+    public static StringBuffer sb = new StringBuffer();
+    
+    public TestAuditlogImpl(Settings settings, IndexNameExpressionResolver resolver, Provider<ClusterService> clusterService) {
         super(settings, resolver, clusterService);
     }
 
@@ -34,8 +41,14 @@ public class DebugAuditLog extends AbstractAuditLog {
     }
 
     @Override
-    protected void save(final AuditMessage msg) {
-        System.out.println("AUDIT_LOG: " + msg.toPrettyString());
+    protected synchronized void save(AuditMessage msg) {
+        sb.append(msg.toPrettyString()+System.lineSeparator());
+        messages.add(msg);
+    }
+    
+    public static synchronized void clear() {
+        sb.setLength(0);
+        messages.clear();
     }
 
 }

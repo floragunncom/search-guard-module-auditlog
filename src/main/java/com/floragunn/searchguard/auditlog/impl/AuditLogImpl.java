@@ -17,9 +17,14 @@ package com.floragunn.searchguard.auditlog.impl;
 import java.io.IOException;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 import org.elasticsearch.SpecialPermission;
 import org.elasticsearch.client.Client;
+import org.elasticsearch.cluster.ClusterService;
+import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.inject.Provider;
 import org.elasticsearch.common.logging.ESLogger;
@@ -28,8 +33,13 @@ import org.elasticsearch.common.settings.Settings;
 
 public final class AuditLogImpl extends AbstractAuditLog {
     
-
+	// package private for unit tests :(
+    final ExecutorService pool;
+    
+    private boolean useExecutorService = true;
+    
     protected final ESLogger log = Loggers.getLogger(this.getClass());
+    
     AbstractAuditLog delegate;
     
     public static void printLicenseInfo() {
@@ -46,34 +56,51 @@ public final class AuditLogImpl extends AbstractAuditLog {
     }
 
     @Inject
-    public AuditLogImpl(final Settings settings, Provider<Client> clientProvider) {
-    	super(settings);
+    public AuditLogImpl(final Settings settings, Provider<Client> clientProvider,
+            final IndexNameExpressionResolver resolver, final Provider<ClusterService> clusterService) {
+    	super(settings, resolver, clusterService);
         String type = settings.get("searchguard.audit.type", null);
-        
+        // thread pool size of 0 means we directly hand the message to the delegate,
+        // skipping the thread pool altogether
+        Integer threadPoolSize = settings.getAsInt("searchguard.audit.threadpool.size", 10);
+        if (threadPoolSize <= 0) {
+        	this.useExecutorService = false;
+        	this.pool = null;
+        } else {
+        	this.pool = Executors.newFixedThreadPool(threadPoolSize);	
+        }        
         String index = settings.get("searchguard.audit.config.index","auditlog");
         String doctype = settings.get("searchguard.audit.config.type","auditlog");
         
 		if (type != null) {
 			switch (type.toLowerCase()) {
 			case "internal_elasticsearch":
-				delegate = new ESAuditLog(settings, clientProvider, index, doctype);
+				delegate = new ESAuditLog(settings, clientProvider, index, doctype, resolver, clusterService);
 				break;
 			case "external_elasticsearch":
 				try {
-					delegate = new HttpESAuditLog(settings);
+					delegate = new HttpESAuditLog(settings, resolver, clusterService);
 				} catch (Exception e) {
 					log.error("Audit logging unavailable: Unable to setup HttpESAuditLog due to {}", e, e.toString());
 				}
 				break;
+			case "webhook":
+				delegate = new WebhookAuditLog(settings, resolver, clusterService);
+				break;				
 			case "debug":
-				delegate = new DebugAuditLog(settings);
+				delegate = new DebugAuditLog(settings, resolver, clusterService);
 				break;
 			default:
                 try {
                     Class<?> delegateClass = Class.forName(type);
 
                     if (AbstractAuditLog.class.isAssignableFrom(delegateClass)) {
-                        delegate = (AbstractAuditLog) delegateClass.getConstructor(Settings.class).newInstance(settings);
+                        try {
+                            delegate = (AbstractAuditLog) delegateClass.getConstructor(Settings.class).newInstance(settings);
+                        } catch (Throwable e) {
+                            delegate = (AbstractAuditLog) delegateClass.getConstructor(Settings.class, IndexNameExpressionResolver.class, Provider.class)
+                                    .newInstance(settings, resolver, clusterService);
+                        }
                     } else {
                         log.error("Audit logging unavailable: '{}' is not a subclass of {}", type, AbstractAuditLog.class.getSimpleName());
                     }
@@ -119,16 +146,61 @@ public final class AuditLogImpl extends AbstractAuditLog {
 
     @Override
     public void close() throws IOException {
-        if(delegate != null) {
-            log.info("Close {}", delegate.getClass().getSimpleName());           
-            delegate.close();
+        
+        if(pool != null) {
+            pool.shutdown(); // Disable new tasks from being submitted
+                    
+            try {
+              // Wait a while for existing tasks to terminate
+              if (!pool.awaitTermination(60, TimeUnit.SECONDS)) {
+                pool.shutdownNow(); // Cancel currently executing tasks
+                // Wait a while for tasks to respond to being cancelled
+                if (!pool.awaitTermination(60, TimeUnit.SECONDS))
+                    log.error("Pool did not terminate");
+              }
+            } catch (InterruptedException ie) {
+              // (Re-)Cancel if current thread also interrupted
+              pool.shutdownNow();
+              // Preserve interrupt status
+              Thread.currentThread().interrupt();
+            }
         }
+    	if(delegate != null) {
+        	try {
+                log.info("Closing {}", delegate.getClass().getSimpleName());           
+                delegate.close();        		
+        	} catch(Exception ex) {
+                log.info("Could not close delegate '{}' due to '{}'", delegate.getClass().getSimpleName(), ex.getMessage());                   		
+        	}
+        }
+        
     }
 
     @Override
     protected void save(final AuditMessage msg) {
+    	// only save if we have a valid delegate
         if(delegate != null) {
-            delegate.save(msg);
+        	// if the configured thread pool is 
+        	if(useExecutorService) {
+            	saveAsync(msg);          		
+        	} else {
+        		delegate.save(msg);
+        	}
         }
+    }
+    
+    protected void saveAsync(final AuditMessage msg) {
+    	try {
+        	pool.submit(new Runnable() {				
+    			@Override
+    			public void run() {
+    				delegate.save(msg);
+    				
+    			}
+    		});                    		    		
+    	} catch(Exception ex) {
+            log.error("Could not submit audit message to thread pool for delegate '{}' due to '{}'", delegate.getClass().getSimpleName(), ex.getMessage());                   		
+    	}
+
     }
 }

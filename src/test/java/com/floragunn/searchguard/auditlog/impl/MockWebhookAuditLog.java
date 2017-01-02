@@ -14,23 +14,27 @@
 
 package com.floragunn.searchguard.auditlog.impl;
 
-import java.io.IOException;
-
 import org.elasticsearch.common.settings.Settings;
 
-public class MyOwnAuditLog extends AbstractAuditLog {
-   
-	public MyOwnAuditLog(Settings settings) {
-        super(settings, null, null);
-    }
-
-    @Override
-	public void close() throws IOException {
-		
+public class MockWebhookAuditLog extends WebhookAuditLog {
+	
+	String payload = null;
+	String url = null;
+	
+	MockWebhookAuditLog(Settings settings) {
+		super(settings, null, null);
 	}
 
 	@Override
-	protected void save(AuditMessage msg) {
+	boolean doPost(String url, String payload) {
+		this.payload = payload;
+		return true;
 	}
-
+	
+	
+	@Override
+	boolean doGet(String url) {
+		this.url = url;
+		return true;
+	}
 }
