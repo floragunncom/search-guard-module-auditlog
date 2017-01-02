@@ -15,7 +15,7 @@
 
   <groupId>com.floragunn</groupId>
   <artifactId>dlic-search-guard-module-auditlog</artifactId>
-  <version>2.3.3.4-SNAPSHOT</version>
+  <version>2.3-4-SNAPSHOT</version>
   <packaging>jar</packaging>
 
   <name>Search Guard</name>
@@ -35,8 +35,8 @@
   </distributionManagement>
 
   <properties>
-    <sg2.version>2.3.3.7</sg2.version>
-    <sgssl.version>2.3.3.16</sgssl.version>
+    <sg2.version>2.3.3.10-SNAPSHOT</sg2.version>
+    <sgssl.version>2.3.3.19</sgssl.version>
     <elasticsearch.version>2.3.3</elasticsearch.version>
     <dependency.locations.enabled>false</dependency.locations.enabled>
   </properties>
@@ -95,7 +95,7 @@
     <dependency>
       <groupId>org.apache.httpcomponents</groupId>
       <artifactId>fluent-hc</artifactId>
-      <version>4.3.4</version>
+      <version>4.4</version>
     </dependency>
 
 

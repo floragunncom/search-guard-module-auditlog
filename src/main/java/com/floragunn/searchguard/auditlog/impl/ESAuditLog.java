@@ -20,6 +20,8 @@ import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.index.IndexRequestBuilder;
 import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.client.Client;
+import org.elasticsearch.cluster.ClusterService;
+import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.common.ContextAndHeaderHolder;
 import org.elasticsearch.common.inject.Provider;
 import org.elasticsearch.common.logging.ESLogger;
@@ -35,8 +37,9 @@ public final class ESAuditLog extends AbstractAuditLog {
     private final String index;
     private final String type;
 
-    public ESAuditLog(final Settings settings, final Provider<Client> clientProvider, String index, String type) {
-        super(settings);
+    public ESAuditLog(final Settings settings, final Provider<Client> clientProvider, String index, String type,
+            final IndexNameExpressionResolver resolver, final Provider<ClusterService> clusterService) {
+        super(settings, resolver, clusterService);
         this.clientProvider = clientProvider;
         this.index = index;
         this.type = type;
@@ -51,7 +54,7 @@ public final class ESAuditLog extends AbstractAuditLog {
     protected void save(final AuditMessage msg) {
 
         try {
-            final IndexRequestBuilder irb = clientProvider.get().prepareIndex(index, type).setRefresh(true).setSource(msg.auditInfo);
+            final IndexRequestBuilder irb = clientProvider.get().prepareIndex(index, type).setRefresh(true).setSource(msg.getAsMap());
             irb.putHeader(ConfigConstants.SG_CONF_REQUEST_HEADER, "true");
             irb.setTimeout(TimeValue.timeValueMinutes(1));
             irb.execute(new ActionListener<IndexResponse>() {
@@ -74,12 +77,10 @@ public final class ESAuditLog extends AbstractAuditLog {
     }
 
     @Override
-    protected void checkAndSave(final ContextAndHeaderHolder request, final AuditMessage msg) {
+    protected void checkAndSave(final ContextAndHeaderHolder request, String action, final AuditMessage msg) {
         if (Boolean.parseBoolean((String) request.getHeader(ConfigConstants.SG_CONF_REQUEST_HEADER))) {
             return;
         }
-        if (msg.getCategory().isEnabled()) {
-        	save(msg);	
-        }        
+        super.checkAndSave(request, action, msg);      
     }
 }

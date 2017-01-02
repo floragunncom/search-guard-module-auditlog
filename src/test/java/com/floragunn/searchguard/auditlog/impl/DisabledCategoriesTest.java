@@ -1,3 +1,17 @@
+/*
+ * Copyright 2016 by floragunn UG (haftungsbeschränkt) - All rights reserved
+ * 
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed here is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * 
+ * This software is free of charge for non-commercial and academic use. 
+ * For commercial use in a production environment you have to obtain a license 
+ * from https://floragunn.com
+ * 
+ */
+
 package com.floragunn.searchguard.auditlog.impl;
 
 import static org.hamcrest.CoreMatchers.containsString;
@@ -8,6 +22,7 @@ import java.io.PrintStream;
 import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import org.elasticsearch.common.logging.ESLogger;
 import org.elasticsearch.common.logging.Loggers;
@@ -36,12 +51,16 @@ public class DisabledCategoriesTest extends AbstractUnitTest  {
 	public ResetCategories resetCategories = new ResetCategories();
 
 	@Test
-	public void completetlyInvalidConfigurationTest() {
-		Builder settingsBuilder  = Settings.settingsBuilder();
+	public void completetlyInvalidConfigurationTest() throws Exception {
+		Builder settingsBuilder = Settings.settingsBuilder();
 		settingsBuilder.put("searchguard.audit.type", "debug");
 		settingsBuilder.put("searchguard.audit.config.disabled_categories", "nonexistant");
-		AuditLog auditLog = new AuditLogImpl(settingsBuilder.build(), null);
+		AuditLogImpl auditLog = new AuditLogImpl(settingsBuilder.build(), null, null, null);
 		logAll(auditLog);
+		
+		auditLog.pool.shutdown();
+		auditLog.pool.awaitTermination(10, TimeUnit.SECONDS);
+
 		String result = capture.getResult();
 		Assert.assertTrue(categoriesPresentInLog(result, Category.values()));
 		
@@ -52,22 +71,28 @@ public class DisabledCategoriesTest extends AbstractUnitTest  {
 		Builder settingsBuilder  = Settings.settingsBuilder();
 		settingsBuilder.put("searchguard.audit.type", "debug");
 		settingsBuilder.put("searchguard.audit.config.disabled_categories", "nonexistant, bad_headers");
-		AuditLog auditLog = new AuditLogImpl(settingsBuilder.build(), null);
+		AuditLog auditLog = new AuditLogImpl(settingsBuilder.build(), null, null, null);
 		logAll(auditLog);
 		String result = capture.getResult();
 		Assert.assertFalse(categoriesPresentInLog(result, Category.BAD_HEADERS));		
 	}
 	
 	@Test
-	public void enableAllCategoryTest() {
+	public void enableAllCategoryTest() throws Exception {
 		Builder settingsBuilder  = Settings.settingsBuilder();
 		settingsBuilder.put("searchguard.audit.type", "debug");
 		
 		// we use the debug output, no ES client is needed. Also, we 
 		// do not need to close.		
-		AuditLog auditLog = new AuditLogImpl(settingsBuilder.build(), null);
+		AuditLogImpl auditLog = new AuditLogImpl(settingsBuilder.build(), null, null, null);
 		
 		logAll(auditLog);
+		
+		// we're using the ExecutorService in AuditLogImpl, so we need to wait
+		// until all tasks are finished before we can check the result
+		auditLog.pool.shutdown();
+		auditLog.pool.awaitTermination(10, TimeUnit.SECONDS);
+		
 		String result = capture.getResult();
 		
 		Assert.assertTrue(categoriesPresentInLog(result, Category.values()));
@@ -84,7 +109,7 @@ public class DisabledCategoriesTest extends AbstractUnitTest  {
 	}
 	
 	@Test
-	public void disableSingleCategoryTest() {
+	public void disableSingleCategoryTest() throws Exception {
 		for (Category category : Category.values()) {
 			checkCategoriesDisabled(category);
 			resetCategories.resetCategories();
@@ -92,12 +117,12 @@ public class DisabledCategoriesTest extends AbstractUnitTest  {
 	}
 
 	@Test
-	public void disableAllCategoryTest() {
+	public void disableAllCategoryTest() throws Exception{
 		checkCategoriesDisabled(Category.values());
 	}
 	
 	@Test
-	public void disableSomeCategoryTest() {
+	public void disableSomeCategoryTest() throws Exception{
 		checkCategoriesDisabled(Category.AUTHENTICATED, Category.BAD_HEADERS, Category.FAILED_LOGIN);
 	}
 	
@@ -106,8 +131,8 @@ public class DisabledCategoriesTest extends AbstractUnitTest  {
 		System.setOut(new PrintStream(new FileOutputStream(FileDescriptor.out)));
 	}
 	
-	protected void checkCategoriesDisabled(Category ... disabledCategories) {
-		// todo: Which source level are we officially on? Can I use lambdas here?
+	protected void checkCategoriesDisabled(Category ... disabledCategories) throws Exception {
+
 		List<String> categoryNames = new LinkedList<>();
 		for (Category category : disabledCategories) {
 			categoryNames.add(category.name().toLowerCase());
@@ -120,9 +145,13 @@ public class DisabledCategoriesTest extends AbstractUnitTest  {
 	
 		// we use the debug output, no ES client is needed. Also, we 
 		// do not need to close.		
-		AuditLog auditLog = new AuditLogImpl(settingsBuilder.build(), null);
+		AuditLogImpl auditLog = new AuditLogImpl(settingsBuilder.build(), null, null, null);
 		
 		logAll(auditLog);
+		
+		auditLog.pool.shutdown();
+		auditLog.pool.awaitTermination(10, TimeUnit.SECONDS);
+
 		String result = capture.getResult();
 				
 		List<Category> allButDisablesCategories = new LinkedList(Arrays.asList(Category.values()));
@@ -133,8 +162,11 @@ public class DisabledCategoriesTest extends AbstractUnitTest  {
 	}
 		
 	protected boolean categoriesPresentInLog(String result, Category ... categories) {
+		// since we're logging a JSON structure, whitespaces between keys and
+		// values must not matter
+		result = result.replaceAll(" ", "");
 		for (Category category : categories) {
-			if(!result.contains("\"audit_category\":\""+category.name()+"\"")) {
+			if(!result.contains("\""+AuditMessage.AuditMessageKey.CATEGORY+"\":\""+category.name()+"\"")) {
 				return false;
 			}
 		}

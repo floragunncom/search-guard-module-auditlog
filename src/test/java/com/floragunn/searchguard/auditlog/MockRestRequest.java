@@ -1,3 +1,17 @@
+/*
+ * Copyright 2016 by floragunn UG (haftungsbeschränkt) - All rights reserved
+ * 
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed here is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * 
+ * This software is free of charge for non-commercial and academic use. 
+ * For commercial use in a production environment you have to obtain a license 
+ * from https://floragunn.com
+ * 
+ */
+
 package com.floragunn.searchguard.auditlog;
 
 import java.util.HashMap;
@@ -13,12 +27,12 @@ public class MockRestRequest extends RestRequest {
     private final Map<String, String> params;
 
     public MockRestRequest() {
-        this(new HashMap<String, String>(), new HashMap<String, String>());
+        this(new HashMap<String, String>(), new HashMap<String, Object>());
     }
 
-    public MockRestRequest(Map<String, String> headers, Map<String, String> context) {
+    public MockRestRequest(Map<String, String> headers, Map<String, Object> context) {
         this.headers = headers;
-        for (Map.Entry<String, String> entry : context.entrySet()) {
+        for (Map.Entry<String, Object> entry : context.entrySet()) {
             putInContext(entry.getKey(), entry.getValue());
         }
         this.params = new HashMap<>();
