@@ -110,11 +110,11 @@ public class RequestResolver {
             auditInfo.put(AuditMessageKey.ID+postfix, id);
 
             if (ur.doc() != null) {
-                auditInfo.put(AuditMessageKey.SOURCE+postfix, ur.doc().source() == null ? null : XContentHelper.convertToJson(ur.doc().source(), false));
+                auditInfo.put(AuditMessageKey.SOURCE+postfix, ur.doc() == null ? null : XContentHelper.convertToJson(ur.doc().source(), false));
             }
 
             if (ur.script() != null) {
-                auditInfo.put(AuditMessageKey.SOURCE+postfix, ur.script().getScript() == null ? null : ur.script().getScript());
+                auditInfo.put(AuditMessageKey.SOURCE+postfix, ur.script() == null ? null : XContentHelper.toString(ur.script()));
             }
         } else if (request instanceof GetRequest) {
             final GetRequest gr = (GetRequest) request;
