@@ -16,9 +16,6 @@ package com.floragunn.searchguard.auditlog.impl;
 
 import java.io.IOException;
 import java.util.Arrays;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 
 import org.elasticsearch.cluster.ClusterService;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
@@ -41,7 +38,6 @@ public final class HttpESAuditLog extends AbstractAuditLog {
 	private final String type;
 	private final HttpClient client;
 	private final String[] servers;
-	private final static ExecutorService pool = Executors.newFixedThreadPool(10);
 
 	public HttpESAuditLog(final Settings settings,
 	        final IndexNameExpressionResolver resolver, final Provider<ClusterService> clusterService) throws Exception {
