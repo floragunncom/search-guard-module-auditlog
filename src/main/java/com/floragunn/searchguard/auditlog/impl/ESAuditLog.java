@@ -21,6 +21,8 @@ import org.elasticsearch.action.index.IndexRequestBuilder;
 import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.elasticsearch.client.Client;
+import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
+import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.inject.Provider;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.unit.TimeValue;
@@ -38,8 +40,9 @@ public final class ESAuditLog extends AbstractAuditLog {
     private final String index;
     private final String type;
 
-    public ESAuditLog(final Settings settings, final Provider<Client> clientProvider, ThreadPool threadPool, String index, String type) {
-        super(settings, threadPool);
+    public ESAuditLog(final Settings settings, final Provider<Client> clientProvider, ThreadPool threadPool, String index, String type,
+            final IndexNameExpressionResolver resolver, final Provider<ClusterService> clusterService) {
+        super(settings, threadPool, resolver, clusterService);
         this.clientProvider = clientProvider;
         this.index = index;
         this.type = type;
@@ -54,7 +57,6 @@ public final class ESAuditLog extends AbstractAuditLog {
     protected void save(final AuditMessage msg) {
 
         try(StoredContext ctx = threadPool.getThreadContext().stashContext()) {
-        
             try {
                 final IndexRequestBuilder irb = clientProvider.get().prepareIndex(index, type).setRefreshPolicy(RefreshPolicy.IMMEDIATE).setSource(msg.auditInfo);
                 threadPool.getThreadContext().putHeader(ConfigConstants.SG_CONF_REQUEST_HEADER, "true");
@@ -76,12 +78,11 @@ public final class ESAuditLog extends AbstractAuditLog {
             } catch (final Exception e) {
                 log.error("Unable to write audit log {} due to {}", e, msg, e.toString());
             }
-        
         }
     }
 
     @Override
-    protected void checkAndSave(final TransportRequest request, final AuditMessage msg) {
+    protected void checkAndSave(final TransportRequest request, String action, final AuditMessage msg) {
         if (Boolean.parseBoolean((String) HeaderHelper.getSafeFromHeader(threadPool.getThreadContext(), ConfigConstants.SG_CONF_REQUEST_HEADER))) {
             if(log.isTraceEnabled()) {
                 log.trace("audit log of audit log will not be executed");
@@ -89,11 +90,11 @@ public final class ESAuditLog extends AbstractAuditLog {
             
             return;
         }
-        super.checkAndSave(request, msg); 
+        super.checkAndSave(request, action, msg); 
     }
     
     @Override
-    protected void checkAndSave(final RestRequest request, final AuditMessage msg) {
+    protected void checkAndSave(final RestRequest request, String action, final AuditMessage msg) {
         if (Boolean.parseBoolean((String) HeaderHelper.getSafeFromHeader(threadPool.getThreadContext(), ConfigConstants.SG_CONF_REQUEST_HEADER))) {
             if(log.isTraceEnabled()) {
                 log.trace("audit log of audit log will not be executed");
@@ -102,6 +103,6 @@ public final class ESAuditLog extends AbstractAuditLog {
             
             return;
         }
-        super.checkAndSave(request, msg);     
+        super.checkAndSave(request, action, msg);     
     }
 }

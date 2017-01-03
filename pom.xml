@@ -35,7 +35,7 @@
   </distributionManagement>
 
   <properties>
-    <sg2.version>5.0.0-8</sg2.version>
+    <sg2.version>5.0.0-10-SNAPSHOT</sg2.version>
     <elasticsearch.version>5.0.0</elasticsearch.version>
     <dependency.locations.enabled>false</dependency.locations.enabled>
   </properties>
@@ -94,7 +94,7 @@
     <dependency>
       <groupId>org.apache.httpcomponents</groupId>
       <artifactId>fluent-hc</artifactId>
-      <version>4.3.4</version>
+      <version>4.4</version>
     </dependency>
 
 

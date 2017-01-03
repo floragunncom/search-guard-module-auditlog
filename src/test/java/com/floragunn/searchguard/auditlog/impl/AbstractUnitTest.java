@@ -47,6 +47,7 @@ import org.elasticsearch.common.transport.InetSocketTransportAddress;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.node.Node;
 import org.elasticsearch.node.PluginAwareNode;
+import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.Netty4Plugin;
 import org.junit.After;
 import org.junit.Before;
@@ -55,7 +56,6 @@ import org.junit.rules.TestName;
 import org.junit.rules.TestWatcher;
 import org.junit.runner.Description;
 
-import com.floragunn.searchguard.SearchGuardPlugin;
 import com.floragunn.searchguard.ssl.SearchGuardSSLPlugin;
 
 public abstract class AbstractUnitTest {
@@ -68,6 +68,8 @@ public abstract class AbstractUnitTest {
         System.out.println("JVM Impl.: " + System.getProperty("java.vm.version") + " " + System.getProperty("java.vm.vendor") + " "
                 + System.getProperty("java.vm.name"));
     }
+    
+    public static final ThreadPool MOCK_POOL = new ThreadPool(Settings.builder().put("node.name",  "mock").build());
 
     @Rule
     public TestName name = new TestName();

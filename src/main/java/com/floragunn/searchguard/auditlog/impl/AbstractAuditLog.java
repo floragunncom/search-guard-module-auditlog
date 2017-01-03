@@ -16,6 +16,9 @@ package com.floragunn.searchguard.auditlog.impl;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
+import org.elasticsearch.cluster.service.ClusterService;
+import org.elasticsearch.common.inject.Provider;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.threadpool.ThreadPool;
@@ -28,12 +31,21 @@ public abstract class AbstractAuditLog implements AuditLog {
 
     protected final Logger log = LogManager.getLogger(this.getClass());
     protected final ThreadPool threadPool;
+    protected final IndexNameExpressionResolver resolver;
+    protected final Provider<ClusterService> clusterService;
+    protected final Settings settings;
+    protected final boolean withRequestDetails;
 
-    protected AbstractAuditLog(Settings settings, ThreadPool threadPool) {
+    protected AbstractAuditLog(Settings settings, final ThreadPool threadPool, final IndexNameExpressionResolver resolver, final Provider<ClusterService> clusterService) {
         super();
         this.threadPool = threadPool;
                 
+        this.settings = settings;
+        this.resolver = resolver;
+        this.clusterService = clusterService;
+        
         String[] disabledCategories = settings.getAsArray("searchguard.audit.config.disabled_categories", new String[]{});
+        withRequestDetails = settings.getAsBoolean("searchguard.audit.enable_request_details", false);
         
         // check if some categories are disabled
         for (String event : disabledCategories) {
@@ -48,67 +60,100 @@ public abstract class AbstractAuditLog implements AuditLog {
 
     @Override
     public void logFailedLogin(final String username, final TransportRequest request) {
-        checkAndSave(request, new AuditMessage(AuditMessage.Category.FAILED_LOGIN, username, null, request, threadPool.getThreadContext()));
+        checkAndSave(request, null, new AuditMessage(AuditMessage.Category.FAILED_LOGIN, "User: "+username, username, request
+                ,threadPool.getThreadContext(), withRequestDetails, resolver, clusterService, this.settings));
     }
 
     @Override
     public void logFailedLogin(final String username, final RestRequest request) {
-        checkAndSave(request, new AuditMessage(AuditMessage.Category.FAILED_LOGIN, username, null, request, threadPool.getThreadContext()));
+        checkAndSave(request, null, new AuditMessage(AuditMessage.Category.FAILED_LOGIN, "User: "+username, username, request
+                ,threadPool.getThreadContext(), withRequestDetails, resolver, clusterService, this.settings));
     }
 
     @Override
     public void logMissingPrivileges(final String privilege, final TransportRequest request) {
-        checkAndSave(request, new AuditMessage(AuditMessage.Category.MISSING_PRIVILEGES, privilege, null, request, threadPool.getThreadContext()));
+        checkAndSave(request, null, new AuditMessage(AuditMessage.Category.MISSING_PRIVILEGES, "Privilege: "+privilege, privilege, request
+                ,threadPool.getThreadContext(), withRequestDetails, resolver, clusterService, this.settings));
     }
 
     @Override
     public void logBadHeaders(final TransportRequest request) {
-        checkAndSave(request, new AuditMessage(AuditMessage.Category.BAD_HEADERS, null, null, request, threadPool.getThreadContext()));
+        checkAndSave(request, null, new AuditMessage(AuditMessage.Category.BAD_HEADERS, null, null, request
+                ,threadPool.getThreadContext(), withRequestDetails, resolver, clusterService, this.settings));
     }
 
     @Override
     public void logBadHeaders(final RestRequest request) {
-        checkAndSave(request, new AuditMessage(AuditMessage.Category.BAD_HEADERS, null, null, request, threadPool.getThreadContext()));
+        checkAndSave(request, null, new AuditMessage(AuditMessage.Category.BAD_HEADERS, null, null, request
+                ,threadPool.getThreadContext(), withRequestDetails, resolver, clusterService, this.settings));
     }
 
     @Override
     public void logSgIndexAttempt(final TransportRequest request, final String action) {
-        checkAndSave(request, new AuditMessage(AuditMessage.Category.SG_INDEX_ATTEMPT, action, null, request, threadPool.getThreadContext()));
+        checkAndSave(request, action, new AuditMessage(AuditMessage.Category.SG_INDEX_ATTEMPT, "Action: "+action, action, request
+                ,threadPool.getThreadContext(), withRequestDetails, resolver, clusterService, this.settings));
     }
 
     @Override
     public void logSSLException(final TransportRequest request, final Throwable t, final String action) {
-        checkAndSave(request, new AuditMessage(AuditMessage.Category.SSL_EXCEPTION, action, t, request, threadPool.getThreadContext()));
+        checkAndSave(request, action, new AuditMessage(AuditMessage.Category.SSL_EXCEPTION, action, t, request
+                ,threadPool.getThreadContext(), withRequestDetails, resolver, clusterService, this.settings));
     }
 
     @Override
     public void logSSLException(final RestRequest request, final Throwable t, final String action) {
-        checkAndSave(request, new AuditMessage(AuditMessage.Category.SSL_EXCEPTION, action, t, request, threadPool.getThreadContext()));
+        checkAndSave(request, action, new AuditMessage(AuditMessage.Category.SSL_EXCEPTION, action, t, request
+                ,threadPool.getThreadContext(), withRequestDetails, resolver, clusterService, this.settings));
     }
     
     @Override
     public void logAuthenticatedRequest(TransportRequest request, final String action) {
-        checkAndSave(request, new AuditMessage(AuditMessage.Category.AUTHENTICATED, action, null, request, threadPool.getThreadContext()));
+        checkAndSave(request, action, new AuditMessage(AuditMessage.Category.AUTHENTICATED, "Action: " + action, action, request
+                ,threadPool.getThreadContext(), withRequestDetails, resolver, clusterService, this.settings));
     }
 
-    protected void checkAndSave(TransportRequest request, final AuditMessage msg) {
+    protected boolean checkActionAndCategory(String action, final AuditMessage msg) {
+        
+        if(action != null 
+                && 
+                ( action.startsWith("internal:")
+                  || action.contains("]") //shard level actions
+                  || action.startsWith("cluster:monitor")
+                  || action.startsWith("indices:monitor")
+                )
+                && msg.category != Category.MISSING_PRIVILEGES
+                && msg.category != Category.FAILED_LOGIN
+                && msg.category != Category.SG_INDEX_ATTEMPT) {
+            
+        
+            if(log.isTraceEnabled()) {
+                log.trace("Skipped audit log message {}", msg.toPrettyString());
+            }
+        
+            return false;
+        }
+        
         if (msg.getCategory().isEnabled()) {
-        	save(msg);        	
+        	return true;      	
         } else {
             if(log.isTraceEnabled()) {
                 log.trace(msg.getCategory()+ " not enabled");
             }
         }
+        
+        return false;
     }
     
-    protected void checkAndSave(RestRequest request, final AuditMessage msg) {
-        if (msg.getCategory().isEnabled()) {
+    protected void checkAndSave(TransportRequest request, String action, final AuditMessage msg) {
+        if (checkActionAndCategory(action, msg)) {
             save(msg);          
-        } else {
-            if(log.isTraceEnabled()) {
-                log.trace(msg.getCategory()+ " not enabled");
-            }
-        }
+        } 
+    }
+    
+    protected void checkAndSave(RestRequest request, String action, final AuditMessage msg) {
+        if (checkActionAndCategory(action, msg)) {
+            save(msg);          
+        } 
     }
 
     protected abstract void save(final AuditMessage msg);
