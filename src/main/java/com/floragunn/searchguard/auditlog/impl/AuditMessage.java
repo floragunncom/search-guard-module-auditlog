@@ -62,7 +62,7 @@ public class AuditMessage {
         auditInfo.put(AuditMessageKey.DETAILS, stringOrNull(details));
         auditInfo.put(AuditMessageKey.DATE, new Date().toString());
         auditInfo.put(AuditMessageKey.UTC_TIMESTAMP, currentTime);
-        auditInfo.put(AuditMessageKey.REQUEST_HEADERS, threadContext.getHeaders());
+        auditInfo.put(AuditMessageKey.REQUEST_HEADERS, stringOrNull(threadContext.getHeaders()));
         auditInfo.put(AuditMessageKey.REQUEST_CLASS, request.getClass().toString());
         auditInfo.put(AuditMessageKey.TYPE, "transport");
         auditInfo.put(AuditMessageKey.REMOTE_ADDRESS, threadContext.getTransient(ConfigConstants.SG_REMOTE_ADDRESS));
