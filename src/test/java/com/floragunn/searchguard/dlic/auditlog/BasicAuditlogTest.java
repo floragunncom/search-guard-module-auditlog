@@ -85,10 +85,11 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
       
         HttpResponse response = rh.executeGetRequest("", new BasicHeader("Authorization", "Basic "+encodeBasicHeader("wronguser", "admin")));
         Assert.assertEquals(HttpStatus.SC_UNAUTHORIZED, response.getStatusCode());
+        Thread.sleep(500);
         Assert.assertTrue(TestAuditlogImpl.sb.toString(),TestAuditlogImpl.sb.toString().contains("FAILED_LOGIN"));
-        Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("wronguser"));
-        Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("utc_timestamp"));
-        Assert.assertFalse(TestAuditlogImpl.sb.toString().contains("AUTHENTICATED"));
+        Assert.assertTrue(TestAuditlogImpl.sb.toString(),TestAuditlogImpl.sb.toString().contains("wronguser"));
+        Assert.assertTrue(TestAuditlogImpl.sb.toString(),TestAuditlogImpl.sb.toString().contains("utc_timestamp"));
+        Assert.assertFalse(TestAuditlogImpl.sb.toString(),TestAuditlogImpl.sb.toString().contains("AUTHENTICATED"));
         Assert.assertEquals(1, TestAuditlogImpl.messages.size());
     }
    
