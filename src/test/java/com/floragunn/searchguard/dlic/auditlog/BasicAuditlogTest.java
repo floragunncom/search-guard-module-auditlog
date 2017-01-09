@@ -51,6 +51,9 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
         
         testBulkNonAuth();
         TestAuditlogImpl.clear();
+        
+        testUpdateSettings();
+        TestAuditlogImpl.clear();
     }
     
     @Test
@@ -227,5 +230,24 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
         Assert.assertEquals(1, TestAuditlogImpl.messages.size());
     }
 	
-  
+    public void testUpdateSettings() throws Exception {
+        
+        String json = 
+        "{"+
+            "\"persistent\" : {"+
+                "\"discovery.zen.minimum_master_nodes\" : 1"+
+            "},"+
+            "\"transient\" : {"+
+                "\"discovery.zen.minimum_master_nodes\" : 1"+
+             "}"+
+        "}";
+
+        HttpResponse response = rh.executePutRequest("_cluster/settings", json, new BasicHeader("Authorization", "Basic "+encodeBasicHeader("admin", "admin")));
+        Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
+        System.out.println(TestAuditlogImpl.sb.toString());
+        Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("AUTHENTICATED"));
+        Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("cluster:admin/settings/update"));
+        Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("discovery.zen.minimum_master_nodes"));
+        Assert.assertEquals(1, TestAuditlogImpl.messages.size());
+    }
 }
