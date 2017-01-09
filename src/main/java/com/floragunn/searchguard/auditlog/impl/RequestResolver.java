@@ -16,12 +16,14 @@ package com.floragunn.searchguard.auditlog.impl;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
 import org.elasticsearch.action.CompositeIndicesRequest;
 import org.elasticsearch.action.IndicesRequest;
+import org.elasticsearch.action.admin.cluster.settings.ClusterUpdateSettingsRequest;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
 import org.elasticsearch.action.delete.DeleteRequest;
@@ -140,6 +142,13 @@ public class RequestResolver {
             final IndicesRequest ir = (IndicesRequest) request;
             final String[] indices = arrayOrEmpty(ir.indices());
             addIndicesSourceSafe(postfix, auditInfo, indices, resolver, cs, null, settings, false);
+        } else if (request instanceof ClusterUpdateSettingsRequest) {
+            final ClusterUpdateSettingsRequest cusr = (ClusterUpdateSettingsRequest) request;
+            final Settings persistentSettings = cusr.persistentSettings();
+            final Settings transientSettings = cusr.transientSettings();
+            auditInfo.put(AuditMessageKey.SOURCE+postfix, 
+                    "persistent: "+String.valueOf(persistentSettings == null?Collections.EMPTY_MAP:persistentSettings.getAsMap())
+                    +";transient: "+String.valueOf(transientSettings == null?Collections.EMPTY_MAP:transientSettings.getAsMap()));  
         } else {
             //we do not support this kind of request
         }
