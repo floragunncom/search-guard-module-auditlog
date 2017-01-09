@@ -203,7 +203,7 @@ public class AuditMessage {
 	    public static final String NODE_HOST = "audit_node_host";
 	    public static final String NODE_NAME = "audit_node_name";
         
-	    public static final String SUBREQUEST_COUNT = "audit_subrequest_count";
+	    public static final String SUBREQUEST_COUNT = "audit_trace_subrequest_count";
         
 	    public static final String REST_PATH = "audit_request_path";
 	    
