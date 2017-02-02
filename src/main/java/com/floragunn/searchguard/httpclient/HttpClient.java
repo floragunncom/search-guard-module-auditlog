@@ -51,6 +51,7 @@ import org.apache.http.impl.client.HttpClients;
 import org.apache.http.message.BasicHeader;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.elasticsearch.common.xcontent.NamedXContentRegistry;
 import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.common.xcontent.XContentParser;
 import org.elasticsearch.common.xcontent.XContentType;
@@ -175,7 +176,7 @@ public class HttpClient implements Closeable {
                         final InputStream contentStream = responseEntity.getContent();
 
                         if (contentStream != null) {
-                            parser = XContentFactory.xContent(XContentType.JSON).createParser(contentStream);
+                            parser = XContentFactory.xContent(XContentType.JSON).createParser(NamedXContentRegistry.EMPTY, contentStream);
                             final Map<String, Object> map = parser.map();
 
                             if (map != null && map.containsKey("_shards")) {

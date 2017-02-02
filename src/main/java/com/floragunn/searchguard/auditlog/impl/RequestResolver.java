@@ -21,21 +21,28 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
+import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.CompositeIndicesRequest;
 import org.elasticsearch.action.IndicesRequest;
 import org.elasticsearch.action.admin.cluster.settings.ClusterUpdateSettingsRequest;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
+import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.delete.DeleteRequest;
 import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.get.MultiGetRequest;
+import org.elasticsearch.action.get.MultiGetRequest.Item;
 import org.elasticsearch.action.index.IndexRequest;
+import org.elasticsearch.action.search.MultiSearchRequest;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.support.IndicesOptions;
+import org.elasticsearch.action.termvectors.MultiTermVectorsRequest;
+import org.elasticsearch.action.termvectors.TermVectorsRequest;
 import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.bytes.BytesReference;
+import org.elasticsearch.common.collect.Tuple;
 import org.elasticsearch.common.inject.Provider;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.XContentHelper;
@@ -52,11 +59,39 @@ public class RequestResolver {
         
         if (request instanceof CompositeIndicesRequest) {
             resolveInner("", request, auditInfo, resolver, cs, settings);
-            final CompositeIndicesRequest cr = (CompositeIndicesRequest) request;
+            
             int i = 1;
-            for (final IndicesRequest ir : cr.subRequests()) {
-                resolveInner("_sub_"+i, ir, auditInfo, resolver, cs, settings);
-                i++;
+            if(request instanceof BulkRequest) {
+
+                for(ActionRequest ar: ((BulkRequest) request).requests()) {
+                    resolveInner("_sub_"+i, ar, auditInfo, resolver, cs, settings);
+                    i++;
+                }
+                
+            } else if(request instanceof MultiGetRequest) {
+                
+                for(Item item: ((MultiGetRequest) request).getItems()) {
+                    resolveInner("_sub_"+i, item, auditInfo, resolver, cs, settings);
+                    i++;
+                }
+                
+            } else if(request instanceof MultiSearchRequest) {
+                
+                for(ActionRequest ar: ((MultiSearchRequest) request).requests()) {
+                    resolveInner("_sub_"+i, ar, auditInfo, resolver, cs, settings);
+                    i++;
+                }
+                
+            } else if(request instanceof MultiTermVectorsRequest) {
+                
+                for(ActionRequest ar: (Iterable<TermVectorsRequest>) () -> ((MultiTermVectorsRequest) request).iterator()) {
+                    resolveInner("_sub_"+i, ar, auditInfo, resolver, cs, settings);
+                    i++;
+                }
+                
+                
+            } else {
+                //log.debug("Can not handle composite request of type '"+request+"' here");
             }
             
         } else {
@@ -158,7 +193,7 @@ public class RequestResolver {
         }
         
         if(request instanceof CompositeIndicesRequest) {
-           auditInfo.put(AuditMessageKey.SUBREQUEST_COUNT+postfix, ((CompositeIndicesRequest) request).subRequests().size());
+           //auditInfo.put(AuditMessageKey.SUBREQUEST_COUNT+postfix, ((CompositeIndicesRequest) request).subRequests().size());
         } else {
            auditInfo.put(AuditMessageKey.SUBREQUEST_COUNT+postfix, null);
         }

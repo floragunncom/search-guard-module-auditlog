@@ -18,12 +18,13 @@ import java.util.Collections;
 import java.util.Map.Entry;
 
 import org.elasticsearch.common.bytes.BytesReference;
+import org.elasticsearch.common.xcontent.NamedXContentRegistry;
 import org.elasticsearch.rest.RestRequest;
 
 public class MockRestRequest extends RestRequest {
 
     public MockRestRequest() {
-        super("");
+        super(NamedXContentRegistry.EMPTY, "");
     }
 
     @Override

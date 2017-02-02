@@ -18,6 +18,7 @@ import java.io.IOException;
 import java.io.Reader;
 import java.io.StringReader;
 
+import org.elasticsearch.common.xcontent.NamedXContentRegistry;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.common.xcontent.XContentParser;
@@ -36,7 +37,7 @@ public class ContentHelper {
 	public static XContentBuilder readXContent(final Reader reader, final XContentType xContentType) throws IOException {
 		XContentParser parser = null;
 		try {
-			parser = XContentFactory.xContent(xContentType).createParser(reader);
+			parser = XContentFactory.xContent(xContentType).createParser(NamedXContentRegistry.EMPTY, reader);
 			parser.nextToken();
 			final XContentBuilder builder = XContentFactory.jsonBuilder();
 			builder.copyCurrentStructure(parser);
