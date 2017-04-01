@@ -23,6 +23,7 @@ import java.util.Set;
 
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.CompositeIndicesRequest;
+import org.elasticsearch.action.DocWriteRequest;
 import org.elasticsearch.action.IndicesRequest;
 import org.elasticsearch.action.admin.cluster.settings.ClusterUpdateSettingsRequest;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
@@ -42,7 +43,6 @@ import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.bytes.BytesReference;
-import org.elasticsearch.common.collect.Tuple;
 import org.elasticsearch.common.inject.Provider;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.XContentHelper;
@@ -63,7 +63,7 @@ public class RequestResolver {
             int i = 1;
             if(request instanceof BulkRequest) {
 
-                for(ActionRequest ar: ((BulkRequest) request).requests()) {
+                for(DocWriteRequest ar: ((BulkRequest) request).requests()) {
                     resolveInner("_sub_"+i, ar, auditInfo, resolver, cs, settings);
                     i++;
                 }

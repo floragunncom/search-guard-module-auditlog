@@ -297,19 +297,18 @@ public class WebhookAuditLogTest extends AbstractUnitTest {
 		Assert.assertTrue(handler.body == null);
 		Assert.assertTrue(handler.uri == null);
 
-		// wrong key for webhook.ssl.verify, must be boolean
-		// default is true, so this call must nor succeed
+		// wrong key for webhook.ssl.verify
 		handler.reset();
 		settings = Settings.builder()
 				.put("searchguard.audit.config.webhook.url", url)
 				.put("searchguard.audit.config.webhook.format", "slack")
 				.put("searchguard.audit.config.webhook.ssl.verify", "foobar")
 				.build();
-		auditlog = new WebhookAuditLog(settings, null, null, null);
-		auditlog.save(msg);
-		Assert.assertTrue(handler.method == null);
-		Assert.assertTrue(handler.body == null);
-		Assert.assertTrue(handler.uri == null);
+		try {
+            auditlog = new WebhookAuditLog(settings, null, null, null);
+        } catch (Exception e) {
+            Assert.assertTrue(e.getMessage().contains("Failed to parse value [foobar]"));
+        }
 
 		// disable ssl verification, call must succeed now
 		handler.reset();

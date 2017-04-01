@@ -24,7 +24,7 @@ import org.elasticsearch.rest.RestRequest;
 public class MockRestRequest extends RestRequest {
 
     public MockRestRequest() {
-        super(NamedXContentRegistry.EMPTY, "");
+        super(NamedXContentRegistry.EMPTY, "", Collections.emptyMap());
     }
 
     @Override
@@ -45,15 +45,5 @@ public class MockRestRequest extends RestRequest {
     @Override
     public BytesReference content() {
         return null;
-    }
-
-    @Override
-    public String header(String name) {
-        return null;
-    }
-
-    @Override
-    public Iterable<Entry<String, String>> headers() {
-        return Collections.emptyList();
     }
 }

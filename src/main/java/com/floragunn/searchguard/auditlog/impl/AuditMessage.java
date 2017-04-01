@@ -15,9 +15,12 @@
 package com.floragunn.searchguard.auditlog.impl;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
@@ -30,6 +33,7 @@ import org.elasticsearch.common.inject.Provider;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.common.xcontent.json.JsonXContent;
+import org.elasticsearch.http.netty4.Netty4HttpRequest;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.transport.TransportRequest;
 import org.joda.time.DateTime;
@@ -94,13 +98,70 @@ public class AuditMessage {
         auditInfo.put(AuditMessageKey.DATE, new Date().toString());
         auditInfo.put(AuditMessageKey.UTC_TIMESTAMP, currentTime);
         auditInfo.put(AuditMessageKey.REST_PATH, request.rawPath());
-        auditInfo.put(AuditMessageKey.REQUEST_HEADERS, stringOrNull(request.headers()));    
+        auditInfo.put(AuditMessageKey.REQUEST_HEADERS, stringOrNull(formatHeaders(request)));    
         auditInfo.put(AuditMessageKey.REQUEST_CLASS, request.getClass().toString());
         auditInfo.put(AuditMessageKey.TYPE, "rest");
         auditInfo.put(AuditMessageKey.REMOTE_ADDRESS, threadContext.getTransient(ConfigConstants.SG_REMOTE_ADDRESS));
         auditInfo.put(AuditMessageKey.PRINCIPAL, threadContext.getTransient(ConfigConstants.SG_SSL_TRANSPORT_PRINCIPAL));    
     }
 
+    private static Iterable<Map.Entry<String, String>> formatHeaders(RestRequest request) {
+        if(request == null) {
+            return null;
+        }
+        
+        if((request instanceof Netty4HttpRequest)) {
+            return ((Netty4HttpRequest) request).request().headers().entries();
+        } else {
+            
+            List<Map.Entry<String, String>> result = new ArrayList<Map.Entry<String,String>>();
+            
+            for (String key: request.getHeaders().keySet()) {
+                List<String> values = request.getHeaders().get(key);
+                if(values != null && values.size() > 0) {
+                    result.add(new Map.Entry<String, String>() {
+
+                        @Override
+                        public String getKey() {
+                            return key;
+                        }
+
+                        @Override
+                        public String getValue() {
+                            return values.get(0);
+                        }
+
+                        @Override
+                        public String setValue(String value) {
+                            return null;
+                        }
+                        
+                        @Override
+                        public String toString() {
+                            return getKey()+"="+getValue(); 
+                        }
+                        
+                        @Override
+                        public int hashCode() {
+                            return toString().hashCode();
+                        }
+                        
+                        @Override
+                        public boolean equals(Object obj) {
+                            return toString().equals(obj);
+                        }
+                        
+                    });
+                }
+            }
+            
+            return result;
+            
+        }
+        
+        
+    }
+    
     
     public Map<String, Object> getAsMap() {
       return Collections.unmodifiableMap(this.auditInfo);
