@@ -27,6 +27,8 @@ import org.elasticsearch.transport.TransportRequest;
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.auditlog.impl.AuditMessage.Category;
 
+import java.util.Arrays;
+
 public abstract class AbstractAuditLog implements AuditLog {
 
     protected final ESLogger log = Loggers.getLogger(this.getClass());
@@ -34,6 +36,7 @@ public abstract class AbstractAuditLog implements AuditLog {
     protected final Provider<ClusterService> clusterService;
     protected final Settings settings;
     protected final boolean withRequestDetails;
+    protected final String[] ignoreAuditUsers;
 
     protected AbstractAuditLog(Settings settings, final IndexNameExpressionResolver resolver, final Provider<ClusterService> clusterService) {
         super();
@@ -44,6 +47,11 @@ public abstract class AbstractAuditLog implements AuditLog {
         
         String[] disabledCategories = settings.getAsArray("searchguard.audit.config.disabled_categories", new String[]{});
         withRequestDetails = settings.getAsBoolean("searchguard.audit.enable_request_details", false);
+
+        ignoreAuditUsers = settings.getAsArray("searchguard.audit.ignore.users");
+        if (ignoreAuditUsers.length > 0) {
+            log.info("Configured Users to ignore: {}", Arrays.toString(ignoreAuditUsers));
+        }
         
         // check if some categories are disabled
         for (String event : disabledCategories) {
@@ -128,6 +136,10 @@ public abstract class AbstractAuditLog implements AuditLog {
                 log.trace("Skipped audit log message {}", msg.toPrettyString());
             }
         
+            return;
+        }
+
+        if (withRequestDetails && Arrays.asList(ignoreAuditUsers).contains(msg.auditInfo.get(AuditMessage.AuditMessageKey.REQUEST_USER))) {
             return;
         }
         
