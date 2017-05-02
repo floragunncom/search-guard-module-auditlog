@@ -118,6 +118,10 @@ public class AuditMessage {
     public Map<String, Object> getAsMap() {
       return Collections.unmodifiableMap(this.auditInfo);
     }
+    
+    public String getUser() {
+        return (String) this.auditInfo.get(AuditMessageKey.REQUEST_USER);
+    }
 
 	public Category getCategory() {
 		return category;
