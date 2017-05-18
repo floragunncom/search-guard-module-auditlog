@@ -24,6 +24,8 @@ import org.elasticsearch.common.logging.ESLogger;
 import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.env.Environment;
+import org.joda.time.format.DateTimeFormat;
+import org.joda.time.format.DateTimeFormatter;
 
 import com.floragunn.searchguard.httpclient.HttpClient;
 import com.floragunn.searchguard.httpclient.HttpClient.HttpClientBuilder;
@@ -38,6 +40,7 @@ public final class HttpESAuditLog extends AbstractAuditLog {
 	private final String type;
 	private final HttpClient client;
 	private final String[] servers;
+	private DateTimeFormatter indexPattern;
 
 	public HttpESAuditLog(final Settings settings,
 	        final IndexNameExpressionResolver resolver, final Provider<ClusterService> clusterService) throws Exception {
@@ -48,6 +51,14 @@ public final class HttpESAuditLog extends AbstractAuditLog {
 
 		servers = auditSettings.getAsArray("http_endpoints", new String[] { "localhost:9200" });
 		this.index = auditSettings.get("index", "auditlog");
+		
+		try {
+            this.indexPattern = DateTimeFormat.forPattern(index);
+        } catch (IllegalArgumentException e) {
+            log.debug("Unable to parse index pattern due to {}. "
+                    + "If you have no date pattern configured you can safely ignore this message", e.getMessage());
+        }
+		
 		this.type = auditSettings.get("type", "auditlog");
 		boolean verifyHostnames = auditSettings.getAsBoolean("verify_hostnames", true);
 		boolean enableSsl = auditSettings.getAsBoolean("enable_ssl", false);
@@ -87,7 +98,7 @@ public final class HttpESAuditLog extends AbstractAuditLog {
 	@Override
 	protected void save(final AuditMessage msg) {
 		try {
-			boolean successful = client.index(msg.toString(), index, type, true);
+			boolean successful = client.index(msg.toString(), getExpandedIndexName(indexPattern, index), type, true);
 
 			if (!successful) {
 				log.error("Unable to send audit log {} to one of these servers: {}", msg, Arrays.toString(servers));

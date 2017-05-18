@@ -14,6 +14,8 @@
 
 package com.floragunn.searchguard.auditlog.impl;
 
+import java.util.Arrays;
+
 import org.elasticsearch.cluster.ClusterService;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.common.ContextAndHeaderHolder;
@@ -23,11 +25,13 @@ import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.transport.TransportRequest;
+import org.joda.time.DateTime;
+import org.joda.time.DateTimeZone;
+import org.joda.time.format.DateTimeFormatter;
 
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.auditlog.impl.AuditMessage.Category;
-
-import java.util.Arrays;
+import com.floragunn.searchguard.support.WildcardMatcher;
 
 public abstract class AbstractAuditLog implements AuditLog {
 
@@ -36,7 +40,7 @@ public abstract class AbstractAuditLog implements AuditLog {
     protected final Provider<ClusterService> clusterService;
     protected final Settings settings;
     protected final boolean withRequestDetails;
-    protected final String[] ignoreAuditUsers;
+    private final String[] ignoreAuditUsers;
 
     protected AbstractAuditLog(Settings settings, final IndexNameExpressionResolver resolver, final Provider<ClusterService> clusterService) {
         super();
@@ -48,7 +52,8 @@ public abstract class AbstractAuditLog implements AuditLog {
         String[] disabledCategories = settings.getAsArray("searchguard.audit.config.disabled_categories", new String[]{});
         withRequestDetails = settings.getAsBoolean("searchguard.audit.enable_request_details", false);
 
-        ignoreAuditUsers = settings.getAsArray("searchguard.audit.ignore.users");
+        ignoreAuditUsers = settings.getAsArray("searchguard.audit.ignore_users", new String[]{});
+
         if (ignoreAuditUsers.length > 0) {
             log.info("Configured Users to ignore: {}", Arrays.toString(ignoreAuditUsers));
         }
@@ -139,7 +144,12 @@ public abstract class AbstractAuditLog implements AuditLog {
             return;
         }
 
-        if (withRequestDetails && Arrays.asList(ignoreAuditUsers).contains(msg.auditInfo.get(AuditMessage.AuditMessageKey.REQUEST_USER))) {
+        if (ignoreAuditUsers.length > 0 && WildcardMatcher.matchAny(ignoreAuditUsers, msg.getUser())) {
+            
+            if(log.isTraceEnabled()) {
+                log.trace("Skipped audit log message {} because user {} is ignored", msg.toPrettyString(), msg.getUser());
+            }
+
             return;
         }
         
@@ -150,4 +160,10 @@ public abstract class AbstractAuditLog implements AuditLog {
 
     protected abstract void save(final AuditMessage msg);
 
+    protected String getExpandedIndexName(DateTimeFormatter indexPattern, String index) {
+        if(indexPattern == null) {
+            return index;
+        }
+        return indexPattern.print(DateTime.now(DateTimeZone.UTC));
+    }
 }
