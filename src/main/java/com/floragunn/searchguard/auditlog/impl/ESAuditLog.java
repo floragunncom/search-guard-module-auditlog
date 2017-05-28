@@ -28,6 +28,8 @@ import org.elasticsearch.common.logging.ESLogger;
 import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.unit.TimeValue;
+import org.joda.time.format.DateTimeFormat;
+import org.joda.time.format.DateTimeFormatter;
 
 import com.floragunn.searchguard.support.ConfigConstants;
 
@@ -36,6 +38,7 @@ public final class ESAuditLog extends AbstractAuditLog {
     private final Provider<Client> clientProvider;
     private final String index;
     private final String type;
+    private DateTimeFormatter indexPattern;
 
     public ESAuditLog(final Settings settings, final Provider<Client> clientProvider, String index, String type,
             final IndexNameExpressionResolver resolver, final Provider<ClusterService> clusterService) {
@@ -43,6 +46,12 @@ public final class ESAuditLog extends AbstractAuditLog {
         this.clientProvider = clientProvider;
         this.index = index;
         this.type = type;
+        try {
+            this.indexPattern = DateTimeFormat.forPattern(index);
+        } catch (IllegalArgumentException e) {
+            log.debug("Unable to parse index pattern due to {}. "
+                    + "If you have no date pattern configured you can safely ignore this message", e.getMessage());
+        }
     }
 
     @Override
@@ -54,7 +63,7 @@ public final class ESAuditLog extends AbstractAuditLog {
     protected void save(final AuditMessage msg) {
 
         try {
-            final IndexRequestBuilder irb = clientProvider.get().prepareIndex(index, type).setRefresh(true).setSource(msg.getAsMap());
+            final IndexRequestBuilder irb = clientProvider.get().prepareIndex(getExpandedIndexName(indexPattern, index), type).setRefresh(true).setSource(msg.getAsMap());
             irb.putHeader(ConfigConstants.SG_CONF_REQUEST_HEADER, "true");
             irb.setTimeout(TimeValue.timeValueMinutes(1));
             irb.execute(new ActionListener<IndexResponse>() {

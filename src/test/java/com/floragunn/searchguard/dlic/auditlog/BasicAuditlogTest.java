@@ -14,6 +14,7 @@
 
 package com.floragunn.searchguard.dlic.auditlog;
 
+import org.apache.http.Header;
 import org.apache.http.HttpStatus;
 import org.apache.http.message.BasicHeader;
 import org.elasticsearch.common.settings.Settings;
@@ -244,5 +245,29 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("cluster:admin/settings/update"));
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("discovery.zen.minimum_master_nodes"));
         Assert.assertEquals(1, TestAuditlogImpl.messages.size());
+    }
+    
+    @Test
+    public void testIndexPattern() throws Exception {
+
+        additionalSettings = Settings.settingsBuilder()
+                .put("searchguard.audit.type", "internal_elasticsearch")
+                .put("searchguard.audit.enable_request_details", false)
+                .put("searchguard.audit.threadpool.size", 0)
+                .put("searchguard.audit.config.index", "'auditlog-'YYYY.MM.dd.ss")
+                .build();
+        
+        setup();
+        setupStarfleetIndex();
+
+        final boolean sendHTTPClientCertificate = rh.sendHTTPClientCertificate;
+        final String keystore = rh.keystore;
+        rh.sendHTTPClientCertificate = true;
+        rh.keystore = "kirk-keystore.jks";
+        HttpResponse res = rh.executeGetRequest("_cat/indices", new Header[0]);
+        rh.sendHTTPClientCertificate = sendHTTPClientCertificate;
+        rh.keystore = keystore;
+
+        Assert.assertTrue(res.getBody().contains("auditlog-20"));
     }
 }
