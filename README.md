@@ -15,12 +15,12 @@ This module for [Search Guard](https://github.com/floragunncom/search-guard) add
 
 * [Elasticsearch 5.0.x / Audit log module 5.0-4](http://search.maven.org/remotecontent?filepath=com/floragunn/dlic-search-guard-module-auditlog/5.0-4/dlic-search-guard-module-auditlog-5.0-4-jar-with-dependencies.jar)
 
-* [Elasticsearch 2.4.x / Audit log module 2.4-4](http://search.maven.org/remotecontent?filepath=com/floragunn/dlic-search-guard-module-auditlog/2.4-4/dlic-search-guard-module-auditlog-2.4-4-jar-with-dependencies.jar)
+* [Elasticsearch 2.4.x / Audit log module 2.4-5](http://search.maven.org/remotecontent?filepath=com/floragunn/dlic-search-guard-module-auditlog/2.4-5/dlic-search-guard-module-auditlog-2.4-5-jar-with-dependencies.jar)
 
 * [Elasticsearch 2.3.x / Audit log module 2.3-4](http://search.maven.org/remotecontent?filepath=com/floragunn/dlic-search-guard-module-auditlog/2.3-4/dlic-search-guard-module-auditlog-2.3-4-jar-with-dependencies.jar)
 
 All versions:
-[Maven central](http://search.maven.org/#search%7Cgav%7C1%7Cg%3A%22com.floragunn%22%20AND%20a%3A%22dlic-search-guard-module-auditlog%22)
+[Maven central](http://search.maven.org/#search%7Cgav%7C1%7Cg%3A%22com.floragunn%22%20AND%20a%3A%22dlic-search-guard-module-auditlog%22) - [Changelog](https://github.com/floragunncom/search-guard-module-auditlog/wiki/Changelog)
 
 **Choose the module version matching your Elasticsearch version, and download the jar with dependencies.**
 
