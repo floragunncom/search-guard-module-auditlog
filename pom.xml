@@ -15,7 +15,7 @@
 
   <groupId>com.floragunn</groupId>
   <artifactId>dlic-search-guard-module-auditlog</artifactId>
-  <version>2.4-5-SNAPSHOT</version>
+  <version>2.4-5</version>
   <packaging>jar</packaging>
 
   <name>Search Guard</name>
@@ -45,7 +45,7 @@
     <url>https://github.com/floragunncom/search-guard-module-auditlog</url>
     <connection>scm:git:git@github.com:floragunncom/search-guard-module-auditlog.git</connection>
     <developerConnection>scm:git:git@github.com:floragunncom/search-guard-module-auditlog.git</developerConnection>
-    <tag>HEAD</tag>
+    <tag>ves-2.4-5</tag>
   </scm>
 
   <issueManagement>
