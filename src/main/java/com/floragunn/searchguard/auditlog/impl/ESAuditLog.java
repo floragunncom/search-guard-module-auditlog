@@ -30,6 +30,8 @@ import org.elasticsearch.common.util.concurrent.ThreadContext.StoredContext;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportRequest;
+import org.joda.time.format.DateTimeFormat;
+import org.joda.time.format.DateTimeFormatter;
 
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.support.HeaderHelper;
@@ -39,6 +41,7 @@ public final class ESAuditLog extends AbstractAuditLog {
     private final Provider<Client> clientProvider;
     private final String index;
     private final String type;
+    private DateTimeFormatter indexPattern;
 
     public ESAuditLog(final Settings settings, final Provider<Client> clientProvider, ThreadPool threadPool, String index, String type,
             final IndexNameExpressionResolver resolver, final Provider<ClusterService> clusterService) {
@@ -46,6 +49,12 @@ public final class ESAuditLog extends AbstractAuditLog {
         this.clientProvider = clientProvider;
         this.index = index;
         this.type = type;
+        try {
+            this.indexPattern = DateTimeFormat.forPattern(index);
+        } catch (IllegalArgumentException e) {
+            log.debug("Unable to parse index pattern due to {}. "
+                    + "If you have no date pattern configured you can safely ignore this message", e.getMessage());
+        }
     }
 
     @Override
@@ -58,7 +67,7 @@ public final class ESAuditLog extends AbstractAuditLog {
 
         try(StoredContext ctx = threadPool.getThreadContext().stashContext()) {
             try {
-                final IndexRequestBuilder irb = clientProvider.get().prepareIndex(index, type).setRefreshPolicy(RefreshPolicy.IMMEDIATE).setSource(msg.auditInfo);
+                final IndexRequestBuilder irb = clientProvider.get().prepareIndex(getExpandedIndexName(indexPattern, index), type).setRefreshPolicy(RefreshPolicy.IMMEDIATE).setSource(msg.auditInfo);
                 threadPool.getThreadContext().putHeader(ConfigConstants.SG_CONF_REQUEST_HEADER, "true");
                 irb.setTimeout(TimeValue.timeValueMinutes(1));
                 irb.execute(new ActionListener<IndexResponse>() {
