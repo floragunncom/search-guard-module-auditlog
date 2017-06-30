@@ -7,7 +7,7 @@ This module for [Search Guard](https://github.com/floragunncom/search-guard) add
 
 ## Downloads
 
-* [Elasticsearch 5.3.x and 5.4.x / Audit log module 5.3-4](http://search.maven.org/remotecontent?filepath=com/floragunn/dlic-search-guard-module-auditlog/5.3-4/dlic-search-guard-module-auditlog-5.3-4-jar-with-dependencies.jar)
+* [Elasticsearch 5.3.x and 5.4.x / Audit log module 5.3-5](http://search.maven.org/remotecontent?filepath=com/floragunn/dlic-search-guard-module-auditlog/5.3-5/dlic-search-guard-module-auditlog-5.3-5-jar-with-dependencies.jar)
 
 * [Elasticsearch 5.2.x / Audit log module 5.2-4](http://search.maven.org/remotecontent?filepath=com/floragunn/dlic-search-guard-module-auditlog/5.2-4/dlic-search-guard-module-auditlog-5.2-4-jar-with-dependencies.jar)
 
