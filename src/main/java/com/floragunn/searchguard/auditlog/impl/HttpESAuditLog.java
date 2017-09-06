@@ -19,7 +19,6 @@ import java.util.Arrays;
 
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.service.ClusterService;
-import org.elasticsearch.common.inject.Provider;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.env.Environment;
 import org.elasticsearch.threadpool.ThreadPool;
@@ -40,7 +39,7 @@ public final class HttpESAuditLog extends AbstractAuditLog {
 	private DateTimeFormatter indexPattern;
 
 	public HttpESAuditLog(final Settings settings, ThreadPool threadPool,
-	        final IndexNameExpressionResolver resolver, final Provider<ClusterService> clusterService) throws Exception {
+	        final IndexNameExpressionResolver resolver, final ClusterService clusterService) throws Exception {
 
 		super(settings, threadPool, resolver, clusterService);
 

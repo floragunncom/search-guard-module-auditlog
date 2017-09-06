@@ -14,16 +14,16 @@
 
 package com.floragunn.searchguard.auditlog.impl;
 
-import com.floragunn.searchguard.dlic.auditlog.TestAuditlogImpl;
-import com.floragunn.searchguard.support.ConfigConstants;
-import com.floragunn.searchguard.user.User;
-
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
+
+import com.floragunn.searchguard.dlic.auditlog.TestAuditlogImpl;
+import com.floragunn.searchguard.support.ConfigConstants;
+import com.floragunn.searchguard.user.User;
 
 /**
  * Created by martin.stange on 19.04.2017.

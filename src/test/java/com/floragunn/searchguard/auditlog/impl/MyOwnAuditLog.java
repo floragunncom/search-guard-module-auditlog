@@ -18,14 +18,13 @@ import java.io.IOException;
 
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.service.ClusterService;
-import org.elasticsearch.common.inject.Provider;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.threadpool.ThreadPool;
 
 public class MyOwnAuditLog extends AbstractAuditLog {
 
 	public MyOwnAuditLog(Settings settings, ThreadPool threadPool,
-	        final IndexNameExpressionResolver resolver, final Provider<ClusterService> clusterService) {
+	        final IndexNameExpressionResolver resolver, final ClusterService clusterService) {
         super(settings, threadPool, resolver, clusterService);
     }
 

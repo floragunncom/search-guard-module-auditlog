@@ -19,7 +19,7 @@ import org.elasticsearch.common.settings.Settings.Builder;
 import org.junit.Assert;
 import org.junit.Test;
 
-public class DelegateTest  extends AbstractUnitTest  {
+public class DelegateTest {
 	@Test
 	public void auditLogTypeTest() throws Exception{
 		testAuditType("DeBUg", DebugAuditLog.class);

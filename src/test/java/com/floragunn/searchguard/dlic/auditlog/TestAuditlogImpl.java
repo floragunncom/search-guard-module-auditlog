@@ -20,7 +20,6 @@ import java.util.List;
 
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.service.ClusterService;
-import org.elasticsearch.common.inject.Provider;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.threadpool.ThreadPool;
 
@@ -33,7 +32,7 @@ public class TestAuditlogImpl extends AbstractAuditLog {
     public static StringBuffer sb = new StringBuffer();
     
     public TestAuditlogImpl(Settings settings, ThreadPool threadPool, 
-            IndexNameExpressionResolver resolver, Provider<ClusterService> clusterService) {
+            IndexNameExpressionResolver resolver, ClusterService clusterService) {
         super(settings, threadPool, resolver, clusterService);
     }
 

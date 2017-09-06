@@ -1,6 +1,7 @@
 sg_all_access:
   users:
     - admin
+    - 'CN=spock,OU=client,O=client,L=Test,C=DE'
     
 sg_public:
   users:

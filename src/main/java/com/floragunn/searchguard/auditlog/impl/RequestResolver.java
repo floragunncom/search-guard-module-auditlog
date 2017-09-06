@@ -21,6 +21,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
+import org.elasticsearch.ExceptionsHelper;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.CompositeIndicesRequest;
 import org.elasticsearch.action.DocWriteRequest;
@@ -43,9 +44,9 @@ import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.bytes.BytesReference;
-import org.elasticsearch.common.inject.Provider;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.XContentHelper;
+import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.transport.TransportRequest;
 
 import com.floragunn.searchguard.auditlog.impl.AuditMessage.AuditMessageKey;
@@ -55,7 +56,7 @@ import com.floragunn.searchguard.support.WildcardMatcher;
 public class RequestResolver {
     
     public static void resolve(final TransportRequest request, final Map<String, Object> auditInfo,
-            final IndexNameExpressionResolver resolver, final Provider<ClusterService> cs, final Settings settings) throws IOException {
+            final IndexNameExpressionResolver resolver, final ClusterService cs, final Settings settings) throws IOException {
         
         if (request instanceof CompositeIndicesRequest) {
             resolveInner("", request, auditInfo, resolver, cs, settings);
@@ -63,7 +64,7 @@ public class RequestResolver {
             int i = 1;
             if(request instanceof BulkRequest) {
 
-                for(DocWriteRequest ar: ((BulkRequest) request).requests()) {
+                for(DocWriteRequest<?> ar: ((BulkRequest) request).requests()) {
                     resolveInner("_sub_"+i, ar, auditInfo, resolver, cs, settings);
                     i++;
                 }
@@ -100,7 +101,7 @@ public class RequestResolver {
     }
 
     private static void resolveInner(final String postfix, final Object request, final Map<String, Object> auditInfo,
-            final IndexNameExpressionResolver resolver, final Provider<ClusterService> cs,
+            final IndexNameExpressionResolver resolver, final ClusterService cs,
             final Settings settings) throws IOException {
 
         if (request instanceof MultiGetRequest.Item) {
@@ -147,7 +148,7 @@ public class RequestResolver {
             auditInfo.put(AuditMessageKey.ID+postfix, id);
 
             if (ur.doc() != null) {
-                auditInfo.put(AuditMessageKey.SOURCE+postfix, ur.doc() == null ? null : XContentHelper.convertToJson(ur.doc().source(), false));
+                auditInfo.put(AuditMessageKey.SOURCE+postfix, ur.doc() == null ? null :sourceToString(ur.doc().source()));
             }
 
             if (ur.script() != null) {
@@ -202,14 +203,14 @@ public class RequestResolver {
     private static void addIndicesSourceSafe(final String postfix, final Map<String, Object> auditInfo, 
             final String[] indices, 
             final IndexNameExpressionResolver resolver, 
-            final Provider<ClusterService> cs, 
+            final ClusterService cs, 
             final BytesReference source,
             final Settings settings,
             final boolean sourceIsSensitive) throws IOException {
 
-        final String searchguardIndex = settings.get(ConfigConstants.SG_CONFIG_INDEX, ConfigConstants.SG_DEFAULT_CONFIG_INDEX);
+        final String searchguardIndex = settings.get(ConfigConstants.SEARCHGUARD_CONFIG_INDEX_NAME, ConfigConstants.SG_DEFAULT_CONFIG_INDEX);
         final String[] _indices = indices == null?new String[0]:indices;
-        final String[] resolvedIndices = (resolver==null)?new String[0]:resolver.concreteIndexNames(cs.get().state(), IndicesOptions.lenientExpandOpen(), indices);
+        final String[] resolvedIndices = (resolver==null)?new String[0]:resolver.concreteIndexNames(cs.state(), IndicesOptions.lenientExpandOpen(), indices);
         auditInfo.put(AuditMessageKey.RESOLVED_INDICES+postfix, resolvedIndices);
         auditInfo.put(AuditMessageKey.INDICES+postfix, _indices);
         
@@ -223,11 +224,29 @@ public class RequestResolver {
         
         if(sourceIsSensitive && source != null) {   
             if(!WildcardMatcher.matchAny(allIndices.toArray(new String[0]), searchguardIndex)) {
-                auditInfo.put(AuditMessageKey.SOURCE+postfix, XContentHelper.convertToJson(source, false));   
+                auditInfo.put(AuditMessageKey.SOURCE+postfix, sourceToString(source));   
             }
         } else if(source != null){
-            auditInfo.put(AuditMessageKey.SOURCE+postfix, XContentHelper.convertToJson(source, false));
+            auditInfo.put(AuditMessageKey.SOURCE+postfix, sourceToString(source));
         }
+    }
+    
+    private static String sourceToString(BytesReference source) {
+        
+        if(source == null) {
+            return "";
+        }
+         try {
+            return XContentHelper.convertToJson(source, false, XContentType.SMILE);
+        } catch (Exception e) {
+            try {
+                return XContentHelper.convertToJson(source, false, XContentType.JSON);
+            } catch (Exception e1) {
+                return e1.toString();
+            }
+        }
+        
+        
     }
     
     private static String[] arrayOrEmpty(String[] array) {

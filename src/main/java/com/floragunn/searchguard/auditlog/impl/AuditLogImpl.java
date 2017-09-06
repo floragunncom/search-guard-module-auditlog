@@ -21,12 +21,11 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.logging.log4j.LogManager;
 import org.elasticsearch.SpecialPermission;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.service.ClusterService;
-import org.elasticsearch.common.inject.Inject;
-import org.elasticsearch.common.inject.Provider;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.threadpool.ThreadPool;
 
@@ -39,22 +38,38 @@ public final class AuditLogImpl extends AbstractAuditLog {
     
     AbstractAuditLog delegate;
     
-    public static void printLicenseInfo() {
-        System.out.println("***************************************************");
-        System.out.println("Search Guard Audit Log is not free software");
-        System.out.println("for commercial use in production.");
-        System.out.println("You have to obtain a license if you ");
-        System.out.println("use it in production.");
-        System.out.println("***************************************************");
+    private static void printLicenseInfo() {
+        final StringBuilder sb = new StringBuilder();
+        sb.append("******************************************************"+System.lineSeparator());
+        sb.append("Search Guard Audit Log is not free software"+System.lineSeparator());
+        sb.append("for commercial use in production."+System.lineSeparator());
+        sb.append("You have to obtain a license if you "+System.lineSeparator());
+        sb.append("use it in production."+System.lineSeparator());
+        sb.append(System.lineSeparator());
+        sb.append("See https://floragunn.com/searchguard-validate-license"+System.lineSeparator());
+        sb.append("In case of any doubt mail to <sales@floragunn.com>"+System.lineSeparator());
+        sb.append("*****************************************************"+System.lineSeparator());
+        
+        final String licenseInfo = sb.toString();
+        
+        if(!Boolean.getBoolean("sg.display_lic_none")) {
+            
+            if(!Boolean.getBoolean("sg.display_lic_only_stdout")) {
+                LogManager.getLogger(AuditLogImpl.class).warn(licenseInfo);
+                System.err.println(licenseInfo);
+            }
+    
+            System.out.println(licenseInfo);
+        }
+        
     }
 
     static {
         printLicenseInfo();
     }
 
-    @Inject
-    public AuditLogImpl(final Settings settings, Provider<Client> clientProvider, ThreadPool threadPool,
-            final IndexNameExpressionResolver resolver, final Provider<ClusterService> clusterService) {
+    public AuditLogImpl(final Settings settings, Client clientProvider, ThreadPool threadPool,
+            final IndexNameExpressionResolver resolver, final ClusterService clusterService) {
     	super(settings, threadPool, resolver, clusterService);
         String type = settings.get("searchguard.audit.type", null);
         // thread pool size of 0 means we directly hand the message to the delegate,
@@ -95,7 +110,7 @@ public final class AuditLogImpl extends AbstractAuditLog {
                         try {
                             delegate = (AbstractAuditLog) delegateClass.getConstructor(Settings.class, ThreadPool.class).newInstance(settings, threadPool);
                         } catch (Throwable e) {
-                            delegate = (AbstractAuditLog) delegateClass.getConstructor(Settings.class, ThreadPool.class, IndexNameExpressionResolver.class, Provider.class)
+                            delegate = (AbstractAuditLog) delegateClass.getConstructor(Settings.class, ThreadPool.class, IndexNameExpressionResolver.class, ClusterService.class)
                                     .newInstance(settings, threadPool, resolver, clusterService);
                         }
                     } else {

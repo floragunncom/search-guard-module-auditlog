@@ -15,7 +15,6 @@
 package com.floragunn.searchguard.auditlog;
 
 import java.util.Collections;
-import java.util.Map.Entry;
 
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.xcontent.NamedXContentRegistry;

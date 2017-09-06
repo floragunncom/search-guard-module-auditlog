@@ -38,7 +38,6 @@ import org.apache.http.ssl.TrustStrategy;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.Strings;
-import org.elasticsearch.common.inject.Provider;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.threadpool.ThreadPool;
 
@@ -52,7 +51,7 @@ class WebhookAuditLog extends AbstractAuditLog {
 	WebhookFormat webhookFormat = null;
 
 	WebhookAuditLog(final Settings settings, ThreadPool threadPool,
-	        final IndexNameExpressionResolver resolver, final Provider<ClusterService> clusterService) {
+	        final IndexNameExpressionResolver resolver, final ClusterService clusterService) {
 		super(settings, threadPool, resolver, clusterService);
 		Settings auditSettings = settings.getAsSettings("searchguard.audit.config");
 		
@@ -278,7 +277,7 @@ class WebhookAuditLog extends AbstractAuditLog {
 	}
 
 	CloseableHttpClient getInsecureHttpClient(Boolean verifySsl)  {
-
+	    
         // TODO: set a timeout until we have a proper way to deal with back pressure
         int timeout = 5;
         

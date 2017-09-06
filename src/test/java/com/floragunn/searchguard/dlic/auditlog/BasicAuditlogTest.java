@@ -28,13 +28,13 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
     @Test
     public void testAuthenticated() throws Exception {
 
-        additionalSettings = Settings.builder()
+        Settings additionalSettings = Settings.builder()
                 .put("searchguard.audit.type", TestAuditlogImpl.class.getName())
                 .put("searchguard.audit.enable_request_details", true)
                 .put("searchguard.audit.threadpool.size", 0)
                 .build();
         
-        setup();
+        setup(additionalSettings);
         setupStarfleetIndex();
         TestAuditlogImpl.clear();
    
@@ -54,14 +54,14 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
     @Test
     public void testNonAuthenticated() throws Exception {
 
-        additionalSettings = Settings.builder()
+        Settings additionalSettings = Settings.builder()
                 .put("searchguard.audit.type", TestAuditlogImpl.class.getName())
                 .put("searchguard.audit.enable_request_details", true)
                 .put("searchguard.audit.threadpool.size", -1)
                 .putArray("searchguard.audit.config.disabled_categories", "AUTHENTICATED")
                 .build();
         
-        setup();
+        setup(additionalSettings);
         setupStarfleetIndex();
         TestAuditlogImpl.clear();
         
@@ -84,7 +84,7 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
     
     public void testWrongUser() throws Exception {
       
-        HttpResponse response = rh.executeGetRequest("", new BasicHeader("Authorization", "Basic "+encodeBasicHeader("wronguser", "admin")));
+        HttpResponse response = rh.executeGetRequest("", encodeBasicHeader("wronguser", "admin"));
         Assert.assertEquals(HttpStatus.SC_UNAUTHORIZED, response.getStatusCode());
         Thread.sleep(500);
         Assert.assertTrue(TestAuditlogImpl.sb.toString(),TestAuditlogImpl.sb.toString().contains("FAILED_LOGIN"));
@@ -120,7 +120,7 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
     
 
     public void testJustAuthenticated() throws Exception {
-        HttpResponse response = rh.executeGetRequest("", new BasicHeader("Authorization", "Basic "+encodeBasicHeader("admin", "admin")));
+        HttpResponse response = rh.executeGetRequest("", encodeBasicHeader("admin", "admin"));
         Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
         Assert.assertEquals(0, TestAuditlogImpl.messages.size());
     }
@@ -128,7 +128,7 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
 
     public void testSgIndexAttempt() throws Exception {
        
-        HttpResponse response = rh.executePutRequest("searchguard/config/0", "{}", new BasicHeader("Authorization", "Basic "+encodeBasicHeader("admin", "admin")));
+        HttpResponse response = rh.executePutRequest("searchguard/config/0", "{}", encodeBasicHeader("admin", "admin"));
         Assert.assertEquals(HttpStatus.SC_FORBIDDEN, response.getStatusCode());
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("MISSING_PRIVILEGES"));
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("SG_INDEX_ATTEMPT"));
@@ -141,7 +141,7 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
 
     public void testBadHeader() throws Exception {
       
-        HttpResponse response = rh.executeGetRequest("", new BasicHeader("_sg_bad", "bad"), new BasicHeader("Authorization", "Basic "+encodeBasicHeader("admin", "admin")));
+        HttpResponse response = rh.executeGetRequest("", new BasicHeader("_sg_bad", "bad"), encodeBasicHeader("admin", "admin"));
         Assert.assertEquals(HttpStatus.SC_FORBIDDEN, response.getStatusCode());
         Assert.assertFalse(TestAuditlogImpl.sb.toString(), TestAuditlogImpl.sb.toString().contains("AUTHENTICATED"));
         Assert.assertTrue(TestAuditlogImpl.sb.toString(), TestAuditlogImpl.sb.toString().contains("BAD_HEADERS"));
@@ -152,7 +152,7 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
     
     public void testMissingPriv() throws Exception {
 
-        HttpResponse response = rh.executeGetRequest("sf/_search", new BasicHeader("Authorization", "Basic "+encodeBasicHeader("worf", "worf")));
+        HttpResponse response = rh.executeGetRequest("sf/_search", encodeBasicHeader("worf", "worf"));
         Assert.assertEquals(HttpStatus.SC_FORBIDDEN, response.getStatusCode());
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("MISSING_PRIVILEGES"));
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("indices:data/read/search"));
@@ -171,7 +171,7 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
                 "{\"index\":\"sf\", \"ignore_unavailable\": true}"+System.lineSeparator()+
                 "{\"size\":0,\"query\":{\"match_all\":{}}}"+System.lineSeparator();           
             
-        HttpResponse response = rh.executePostRequest("_msearch?pretty", msearch, new BasicHeader("Authorization", "Basic "+encodeBasicHeader("admin", "admin")));        
+        HttpResponse response = rh.executePostRequest("_msearch?pretty", msearch, encodeBasicHeader("admin", "admin"));        
         Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("indices:data/read/msearch"));
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("indices:data/read/search"));
@@ -194,7 +194,7 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
                 "{ \"field1\" : \"value3x\" }"+System.lineSeparator();
                 
 
-        HttpResponse response = rh.executePostRequest("_bulk", bulkBody, new BasicHeader("Authorization", "Basic "+encodeBasicHeader("admin", "admin")));
+        HttpResponse response = rh.executePostRequest("_bulk", bulkBody, encodeBasicHeader("admin", "admin"));
         Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());  
         Assert.assertTrue(response.getBody().contains("\"errors\":false"));
         Assert.assertTrue(response.getBody().contains("\"status\":201"));                   
@@ -218,7 +218,7 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
                 "{ \"create\" : { \"_index\" : \"test\", \"_type\" : \"type1\", \"_id\" : \"1\" } }"+System.lineSeparator()+
                 "{ \"field1\" : \"value3x\" }"+System.lineSeparator();
 
-        HttpResponse response = rh.executePostRequest("_bulk", bulkBody, new BasicHeader("Authorization", "Basic "+encodeBasicHeader("worf", "worf")));
+        HttpResponse response = rh.executePostRequest("_bulk", bulkBody, encodeBasicHeader("worf", "worf"));
         Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
         Assert.assertTrue(response.getBody().contains("\"errors\":true"));
         Assert.assertTrue(response.getBody().contains("\"status\":200")); 
@@ -241,7 +241,7 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
              "}"+
         "}";
 
-        HttpResponse response = rh.executePutRequest("_cluster/settings", json, new BasicHeader("Authorization", "Basic "+encodeBasicHeader("admin", "admin")));
+        HttpResponse response = rh.executePutRequest("_cluster/settings", json, encodeBasicHeader("admin", "admin"));
         Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
         System.out.println(TestAuditlogImpl.sb.toString());
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("AUTHENTICATED"));
@@ -253,14 +253,14 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
     @Test
     public void testIndexPattern() throws Exception {
 
-        additionalSettings = Settings.builder()
+        Settings additionalSettings = Settings.builder()
                 .put("searchguard.audit.type", "internal_elasticsearch")
                 .put("searchguard.audit.enable_request_details", false)
                 .put("searchguard.audit.threadpool.size", 0)
                 .put("searchguard.audit.config.index", "'auditlog-'YYYY.MM.dd.ss")
                 .build();
         
-        setup();
+        setup(additionalSettings);
         setupStarfleetIndex();
 
         final boolean sendHTTPClientCertificate = rh.sendHTTPClientCertificate;

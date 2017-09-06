@@ -19,7 +19,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -29,7 +28,6 @@ import org.elasticsearch.ExceptionsHelper;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.Strings;
-import org.elasticsearch.common.inject.Provider;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.common.xcontent.json.JsonXContent;
@@ -52,7 +50,7 @@ public class AuditMessage {
 
     public AuditMessage(final Category category, final Object reason, final Object details, 
             final TransportRequest request, final ThreadContext threadContext, final boolean withRequestDetails
-            ,final IndexNameExpressionResolver resolver, final Provider<ClusterService> clusterService, Settings settings) {
+            ,final IndexNameExpressionResolver resolver, final ClusterService clusterService, Settings settings) {
     	this.category = category;
     	
     	final User user = threadContext.getTransient(ConfigConstants.SG_USER);
@@ -83,7 +81,7 @@ public class AuditMessage {
     
     AuditMessage(final Category category, final Object reason, final Object details, final RestRequest request
             , final ThreadContext threadContext, final boolean withRequestDetails,
-            final IndexNameExpressionResolver resolver, final Provider<ClusterService> clusterService, Settings settings) {
+            final IndexNameExpressionResolver resolver, final ClusterService clusterService, Settings settings) {
         this.category = category;
         
         final User user = threadContext.getTransient(ConfigConstants.SG_USER);
