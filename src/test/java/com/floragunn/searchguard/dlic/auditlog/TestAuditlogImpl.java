@@ -15,6 +15,7 @@
 package com.floragunn.searchguard.dlic.auditlog;
 
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -31,7 +32,7 @@ public class TestAuditlogImpl extends AbstractAuditLog {
     public static List<AuditMessage> messages = new ArrayList<AuditMessage>(100);
     public static StringBuffer sb = new StringBuffer();
     
-    public TestAuditlogImpl(Settings settings, ThreadPool threadPool, 
+    public TestAuditlogImpl(Settings settings, final Path configPath, ThreadPool threadPool, 
             IndexNameExpressionResolver resolver, ClusterService clusterService) {
         super(settings, threadPool, resolver, clusterService);
     }

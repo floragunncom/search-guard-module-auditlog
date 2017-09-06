@@ -22,7 +22,7 @@ public class MockWebhookAuditLog extends WebhookAuditLog {
 	String url = null;
 	
 	MockWebhookAuditLog(Settings settings) {
-		super(settings, null, null, null);
+		super(settings, null, null, null, null);
 	}
 
 	@Override

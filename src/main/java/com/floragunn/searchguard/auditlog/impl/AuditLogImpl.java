@@ -15,6 +15,7 @@
 package com.floragunn.searchguard.auditlog.impl;
 
 import java.io.IOException;
+import java.nio.file.Path;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.concurrent.ExecutorService;
@@ -68,7 +69,7 @@ public final class AuditLogImpl extends AbstractAuditLog {
         printLicenseInfo();
     }
 
-    public AuditLogImpl(final Settings settings, Client clientProvider, ThreadPool threadPool,
+    public AuditLogImpl(final Settings settings, final Path configPath, Client clientProvider, ThreadPool threadPool,
             final IndexNameExpressionResolver resolver, final ClusterService clusterService) {
     	super(settings, threadPool, resolver, clusterService);
         String type = settings.get("searchguard.audit.type", null);
@@ -87,20 +88,20 @@ public final class AuditLogImpl extends AbstractAuditLog {
 		if (type != null) {
 			switch (type.toLowerCase()) {
 			case "internal_elasticsearch":
-				delegate = new ESAuditLog(settings, clientProvider, threadPool, index, doctype, resolver, clusterService);
+				delegate = new ESAuditLog(settings, configPath, clientProvider, threadPool, index, doctype, resolver, clusterService);
 				break;
 			case "external_elasticsearch":
 				try {
-					delegate = new HttpESAuditLog(settings, threadPool, resolver, clusterService);
+					delegate = new HttpESAuditLog(settings, configPath, threadPool, resolver, clusterService);
 				} catch (Exception e) {
 					log.error("Audit logging unavailable: Unable to setup HttpESAuditLog due to {}", e, e.toString());
 				}
 				break;
 			case "webhook":
-				delegate = new WebhookAuditLog(settings, threadPool, resolver, clusterService);
+				delegate = new WebhookAuditLog(settings, configPath, threadPool, resolver, clusterService);
 				break;				
 			case "debug":
-				delegate = new DebugAuditLog(settings, threadPool, resolver, clusterService);
+				delegate = new DebugAuditLog(settings, configPath, threadPool, resolver, clusterService);
 				break;
 			default:
                 try {
@@ -110,8 +111,8 @@ public final class AuditLogImpl extends AbstractAuditLog {
                         try {
                             delegate = (AbstractAuditLog) delegateClass.getConstructor(Settings.class, ThreadPool.class).newInstance(settings, threadPool);
                         } catch (Throwable e) {
-                            delegate = (AbstractAuditLog) delegateClass.getConstructor(Settings.class, ThreadPool.class, IndexNameExpressionResolver.class, ClusterService.class)
-                                    .newInstance(settings, threadPool, resolver, clusterService);
+                            delegate = (AbstractAuditLog) delegateClass.getConstructor(Settings.class, Path.class, ThreadPool.class, IndexNameExpressionResolver.class, ClusterService.class)
+                                    .newInstance(settings, configPath, threadPool, resolver, clusterService);
                         }
                     } else {
                         log.error("Audit logging unavailable: '{}' is not a subclass of {}", type, AbstractAuditLog.class.getSimpleName());

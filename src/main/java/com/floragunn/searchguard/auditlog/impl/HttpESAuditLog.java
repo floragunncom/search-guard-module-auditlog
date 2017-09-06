@@ -15,6 +15,7 @@
 package com.floragunn.searchguard.auditlog.impl;
 
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.Arrays;
 
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
@@ -38,7 +39,7 @@ public final class HttpESAuditLog extends AbstractAuditLog {
 	private final String[] servers;
 	private DateTimeFormatter indexPattern;
 
-	public HttpESAuditLog(final Settings settings, ThreadPool threadPool,
+	public HttpESAuditLog(final Settings settings, final Path configPath, ThreadPool threadPool,
 	        final IndexNameExpressionResolver resolver, final ClusterService clusterService) throws Exception {
 
 		super(settings, threadPool, resolver, clusterService);
@@ -62,8 +63,8 @@ public final class HttpESAuditLog extends AbstractAuditLog {
 		String user = auditSettings.get("username");
 		String password = auditSettings.get("password");
 
-		HttpClientBuilder builder = HttpClient.builder(servers);
-		Environment env = new Environment(settings);
+		final HttpClientBuilder builder = HttpClient.builder(servers);
+		final Environment env = new Environment(settings, configPath);
 
 		if (enableSsl) {
 			builder.enableSsl(

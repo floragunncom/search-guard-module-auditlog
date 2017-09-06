@@ -15,6 +15,7 @@
 package com.floragunn.searchguard.auditlog.impl;
 
 import java.io.IOException;
+import java.nio.file.Path;
 
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.service.ClusterService;
@@ -23,7 +24,7 @@ import org.elasticsearch.threadpool.ThreadPool;
 
 public class MyOwnAuditLog extends AbstractAuditLog {
 
-	public MyOwnAuditLog(Settings settings, ThreadPool threadPool,
+	public MyOwnAuditLog(Settings settings, final Path configPath, ThreadPool threadPool,
 	        final IndexNameExpressionResolver resolver, final ClusterService clusterService) {
         super(settings, threadPool, resolver, clusterService);
     }

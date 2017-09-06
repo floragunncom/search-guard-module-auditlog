@@ -52,7 +52,7 @@ public class DisabledCategoriesTest {
 		Builder settingsBuilder = Settings.builder();
 		settingsBuilder.put("searchguard.audit.type", "debug");
 		settingsBuilder.put("searchguard.audit.config.disabled_categories", "nonexistant");
-		AuditLogImpl auditLog = new AuditLogImpl(settingsBuilder.build(), null, AbstractSGUnitTest.MOCK_POOL, null, null);
+		AuditLogImpl auditLog = new AuditLogImpl(settingsBuilder.build(), null, null, AbstractSGUnitTest.MOCK_POOL, null, null);
 		logAll(auditLog);
 		
 		auditLog.pool.shutdown();
@@ -68,7 +68,7 @@ public class DisabledCategoriesTest {
 		Builder settingsBuilder  = Settings.builder();
 		settingsBuilder.put("searchguard.audit.type", "debug");
 		settingsBuilder.put("searchguard.audit.config.disabled_categories", "nonexistant, bad_headers");
-		AuditLog auditLog = new AuditLogImpl(settingsBuilder.build(), null, AbstractSGUnitTest.MOCK_POOL, null, null);
+		AuditLog auditLog = new AuditLogImpl(settingsBuilder.build(), null, null, AbstractSGUnitTest.MOCK_POOL, null, null);
 		logAll(auditLog);
 		String result = capture.getResult();
 		Assert.assertFalse(categoriesPresentInLog(result, Category.BAD_HEADERS));		
@@ -82,7 +82,7 @@ public class DisabledCategoriesTest {
 		
 		// we use the debug output, no ES client is needed. Also, we 
 		// do not need to close.
-		AuditLogImpl auditLog = new AuditLogImpl(settingsBuilder.build(), null, AbstractSGUnitTest.MOCK_POOL, null, null);
+		AuditLogImpl auditLog = new AuditLogImpl(settingsBuilder.build(), null, null, AbstractSGUnitTest.MOCK_POOL, null, null);
 		
 		logAll(auditLog);
 		
@@ -143,7 +143,7 @@ public class DisabledCategoriesTest {
 	
 		// we use the debug output, no ES client is needed. Also, we 
 		// do not need to close.		
-		AuditLog auditLog = new AuditLogImpl(settingsBuilder.build(), null, AbstractSGUnitTest.MOCK_POOL, null, null);
+		AuditLog auditLog = new AuditLogImpl(settingsBuilder.build(), null, null, AbstractSGUnitTest.MOCK_POOL, null, null);
 		
 		logAll(auditLog);
 		

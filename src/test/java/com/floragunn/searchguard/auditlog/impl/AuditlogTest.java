@@ -32,7 +32,7 @@ public class AuditlogTest {
                 .put("searchguard.audit.enable_request_details", true)
                 .put("searchguard.audit.threadpool.size", 0)
                 .build();
-        AbstractAuditLog al = new AuditLogImpl(settings, null, AbstractSGUnitTest.MOCK_POOL, null, null);
+        AbstractAuditLog al = new AuditLogImpl(settings, null, null, AbstractSGUnitTest.MOCK_POOL, null, null);
         TestAuditlogImpl.clear();
         al.logAuthenticatedRequest(new ClusterHealthRequest(), "indices:data/read/search");
         Assert.assertEquals(1, TestAuditlogImpl.messages.size());
@@ -50,7 +50,7 @@ public class AuditlogTest {
                 .put("searchguard.audit.enable_request_details", true)
                 .put("searchguard.audit.threadpool.size", 0)
                 .build();
-        AbstractAuditLog al = new AuditLogImpl(settings, null, AbstractSGUnitTest.MOCK_POOL, null, null);
+        AbstractAuditLog al = new AuditLogImpl(settings, null,  null, AbstractSGUnitTest.MOCK_POOL, null, null);
         TestAuditlogImpl.clear();
         al.logAuthenticatedRequest(sr, "indices:data/read/search");
         Assert.assertEquals(1, TestAuditlogImpl.messages.size());

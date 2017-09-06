@@ -15,6 +15,7 @@
 package com.floragunn.searchguard.auditlog.impl;
 
 import java.io.IOException;
+import java.nio.file.Path;
 
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.index.IndexRequestBuilder;
@@ -42,7 +43,7 @@ public final class ESAuditLog extends AbstractAuditLog {
     private final String type;
     private DateTimeFormatter indexPattern;
 
-    public ESAuditLog(final Settings settings, final Client clientProvider, ThreadPool threadPool, String index, String type,
+    public ESAuditLog(final Settings settings, final Path configPath, final Client clientProvider, ThreadPool threadPool, String index, String type,
             final IndexNameExpressionResolver resolver, final ClusterService clusterService) {
         super(settings, threadPool, resolver, clusterService);
         this.clientProvider = clientProvider;

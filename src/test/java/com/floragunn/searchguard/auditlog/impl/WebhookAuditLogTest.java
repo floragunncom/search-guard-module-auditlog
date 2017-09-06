@@ -152,7 +152,7 @@ public class WebhookAuditLogTest {
 				.build();
 
 		// just make sure no exception is thrown
-		WebhookAuditLog auditlog = new WebhookAuditLog(settings, null, null, null);
+		WebhookAuditLog auditlog = new WebhookAuditLog(settings, null, null, null, null);
 		AuditMessage msg = MockAuditMessageFactory.validAuditMessage();
 		auditlog.save(msg);
 	}
@@ -177,7 +177,7 @@ public class WebhookAuditLogTest {
 				.put("searchguard.audit.config.webhook.format", "slack")
 				.build();
 
-		WebhookAuditLog auditlog = new WebhookAuditLog(settings, null, null, null);
+		WebhookAuditLog auditlog = new WebhookAuditLog(settings, null, null, null, null);
 		AuditMessage msg = MockAuditMessageFactory.validAuditMessage();
 		auditlog.save(msg);
 		Assert.assertTrue(handler.method.equals("POST"));
@@ -191,7 +191,7 @@ public class WebhookAuditLogTest {
 				.put("searchguard.audit.config.webhook.format", "texT")
 				.build();
 
-		auditlog = new WebhookAuditLog(settings, null, null, null);
+		auditlog = new WebhookAuditLog(settings, null, null, null, null);
 		auditlog.save(msg);
 		Assert.assertTrue(handler.method.equals("POST"));
 		Assert.assertTrue(handler.body != null);
@@ -205,7 +205,7 @@ public class WebhookAuditLogTest {
 				.put("searchguard.audit.config.webhook.format", "JSon")
 				.build();
 
-		auditlog = new WebhookAuditLog(settings, null, null, null);
+		auditlog = new WebhookAuditLog(settings, null, null, null, null);
 		auditlog.save(msg);
 		Assert.assertTrue(handler.method.equals("POST"));
 		Assert.assertTrue(handler.body != null);
@@ -218,7 +218,7 @@ public class WebhookAuditLogTest {
 				.put("searchguard.audit.config.webhook.format", "URL_PARAMETER_POST")
 				.build();
 
-		auditlog = new WebhookAuditLog(settings, null, null, null);
+		auditlog = new WebhookAuditLog(settings, null, null, null, null);
 		auditlog.save(msg);
 		Assert.assertTrue(handler.method.equals("POST"));
 		Assert.assertTrue(handler.body.equals(""));
@@ -231,7 +231,7 @@ public class WebhookAuditLogTest {
 				.put("searchguard.audit.config.webhook.format", "URL_PARAMETER_GET")
 				.build();
 
-		auditlog = new WebhookAuditLog(settings, null, null, null);
+		auditlog = new WebhookAuditLog(settings, null, null, null, null);
 		auditlog.save(msg);
 		Assert.assertTrue(handler.method.equals("GET"));
 		Assert.assertTrue(handler.body.equals(""));
@@ -260,7 +260,7 @@ public class WebhookAuditLogTest {
 				.put("searchguard.audit.config.webhook.format", "slack")
 				.build();
 
-		WebhookAuditLog auditlog = new WebhookAuditLog(settings, null, null, null);
+		WebhookAuditLog auditlog = new WebhookAuditLog(settings, null, null, null, null);
 		AuditMessage msg = MockAuditMessageFactory.validAuditMessage();
 		auditlog.save(msg);
 		Assert.assertTrue(handler.method == null);
@@ -291,7 +291,7 @@ public class WebhookAuditLogTest {
 				.put("searchguard.audit.config.webhook.format", "slack")
 				.build();
 
-		WebhookAuditLog auditlog = new WebhookAuditLog(settings, null, null, null);
+		WebhookAuditLog auditlog = new WebhookAuditLog(settings, null, null, null, null);
 		AuditMessage msg = MockAuditMessageFactory.validAuditMessage();
 		auditlog.save(msg);
 		Assert.assertTrue(handler.method == null);
@@ -306,7 +306,7 @@ public class WebhookAuditLogTest {
 				.put("searchguard.audit.config.webhook.ssl.verify", "foobar")
 				.build();
 		try {
-            auditlog = new WebhookAuditLog(settings, null, null, null);
+            auditlog = new WebhookAuditLog(settings, null, null, null, null);
         } catch (Exception e) {
             Assert.assertTrue(e.getMessage().contains("Failed to parse value [foobar]"));
         }
@@ -318,7 +318,7 @@ public class WebhookAuditLogTest {
 				.put("searchguard.audit.config.webhook.format", "jSoN")
 				.put("searchguard.audit.config.webhook.ssl.verify", false)
 				.build();
-		auditlog = new WebhookAuditLog(settings, null, null, null);
+		auditlog = new WebhookAuditLog(settings, null, null, null, null);
 		auditlog.save(msg);
 		Assert.assertTrue(handler.method.equals("POST"));
 		Assert.assertTrue(handler.body != null);

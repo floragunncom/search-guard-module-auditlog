@@ -18,6 +18,7 @@ import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 import java.security.cert.X509Certificate;
 
 import javax.net.ssl.HostnameVerifier;
@@ -50,7 +51,7 @@ class WebhookAuditLog extends AbstractAuditLog {
 	String webhookUrl = null;
 	WebhookFormat webhookFormat = null;
 
-	WebhookAuditLog(final Settings settings, ThreadPool threadPool,
+	WebhookAuditLog(final Settings settings, final Path configPath, ThreadPool threadPool,
 	        final IndexNameExpressionResolver resolver, final ClusterService clusterService) {
 		super(settings, threadPool, resolver, clusterService);
 		Settings auditSettings = settings.getAsSettings("searchguard.audit.config");
