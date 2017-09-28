@@ -34,7 +34,6 @@ import org.elasticsearch.common.settings.Settings;
 import org.junit.Assert;
 import org.junit.Test;
 
-import com.floragunn.searchguard.auditlog.impl.AuditMessage.AuditMessageKey;
 import com.floragunn.searchguard.auditlog.impl.AuditMessage.Category;
 import com.floragunn.searchguard.auditlog.impl.WebhookAuditLog.WebhookFormat;
 import com.floragunn.searchguard.test.helper.file.FileHelper;
@@ -354,18 +353,12 @@ public class WebhookAuditLogTest {
 	}
 
 	private void assertStringContainsAllKeysAndValues(String in) {
-		Assert.assertTrue(in.contains(AuditMessageKey.FORMAT_VERSION));
-		Assert.assertTrue(in.contains(AuditMessageKey.DATE));
-		Assert.assertTrue(in.contains(AuditMessageKey.CATEGORY));
-		Assert.assertTrue(in.contains(AuditMessageKey.REQUEST_USER));
-		Assert.assertTrue(in.contains(AuditMessageKey.REMOTE_ADDRESS));
-		Assert.assertTrue(in.contains(AuditMessageKey.REASON));
-		Assert.assertTrue(in.contains(AuditMessageKey.DETAILS));
-		Assert.assertTrue(in.contains(AuditMessageKey.REQUEST_CLASS));
-		Assert.assertTrue(in.contains(AuditMessageKey.REQUEST_HEADERS));
-		Assert.assertTrue(in.contains(AuditMessageKey.PRINCIPAL));
-		Assert.assertTrue(in.contains(AuditMessageKey.UTC_TIMESTAMP));
-		Assert.assertTrue(in.contains(AuditMessageKey.TYPE));			
+		Assert.assertTrue(in.contains(AuditMessage.FORMAT_VERSION));
+		Assert.assertTrue(in.contains(AuditMessage.CATEGORY));
+		//Assert.assertTrue(in.contains(AuditMessage.REQUEST_USER));
+		Assert.assertTrue(in.contains(AuditMessage.REMOTE_ADDRESS));
+		Assert.assertTrue(in.contains(AuditMessage.REQUEST_TYPE));
+		Assert.assertTrue(in.contains(AuditMessage.UTC_TIMESTAMP));
 		Assert.assertTrue(in.contains(Category.FAILED_LOGIN.name()));
 		Assert.assertTrue(in.contains("Forbidden"));
 		Assert.assertTrue(in.contains("Details"));

@@ -165,7 +165,7 @@ public class DisabledCategoriesTest {
 		// values must not matter
 		result = result.replaceAll(" ", "");
 		for (Category category : categories) {
-			if(!result.contains("\""+AuditMessage.AuditMessageKey.CATEGORY+"\":\""+category.name()+"\"")) {
+			if(!result.contains("\""+AuditMessage.CATEGORY+"\":\""+category.name()+"\"")) {
 				return false;
 			}
 		}
@@ -184,11 +184,11 @@ public class DisabledCategoriesTest {
 		logAuthenticatedRequest(auditLog);
     }
     protected void logRestFailedLogin(AuditLog auditLog) {
-    	auditLog.logFailedLogin("testuser.rest.failedlogin", new MockRestRequest());
+    	auditLog.logFailedLogin("testuser.rest.failedlogin", false, "testuser.rest.failedlogin", new MockRestRequest());
     }
 
     protected void logTransportFailedLogin(AuditLog auditLog) {
-    	auditLog.logFailedLogin("testuser.transport.failedlogin", new TransportRequest.Empty());
+    	auditLog.logFailedLogin("testuser.transport.failedlogin", false, "testuser.transport.failedlogin", new TransportRequest.Empty());
     }
 
     protected void logMissingPrivileges(AuditLog auditLog) {
@@ -196,7 +196,7 @@ public class DisabledCategoriesTest {
     }
 
     protected void logTransportBadHeaders(AuditLog auditLog) {
-    	auditLog.logBadHeaders(new TransportRequest.Empty());
+    	auditLog.logBadHeaders(new TransportRequest.Empty(),"action");
     }
 
     protected void logRestBadHeaders(AuditLog auditLog) {
@@ -208,7 +208,7 @@ public class DisabledCategoriesTest {
     }
 
     protected void logRestSSLException(AuditLog auditLog) {
-    	auditLog.logSSLException(new MockRestRequest(), new Exception(), "action.rest.ssl");
+    	auditLog.logSSLException(new MockRestRequest(), new Exception());
     }
 
     protected void logTransportSSLException(AuditLog auditLog) {
@@ -216,7 +216,7 @@ public class DisabledCategoriesTest {
     }
        
     protected void logAuthenticatedRequest(AuditLog auditLog) {
-    	auditLog.logAuthenticatedRequest(new TransportRequest.Empty(), "action.success");
+    	auditLog.logGrantedPrivileges("action.success", new TransportRequest.Empty());
     }
 
 }

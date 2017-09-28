@@ -23,18 +23,6 @@
   <url>https://github.com/floragunncom/search-guard-module-auditlog</url>
   <inceptionYear>2016</inceptionYear>
 
-  <repositories>
-      <repository>
-        <id>lucene-repository</id>
-        <name>Lucene Maven</name>
-        <url>https://download.elasticsearch.org/lucenesnapshots/a128fcb</url>
-        <snapshots>
-          <enabled>true</enabled>
-          <updatePolicy>always</updatePolicy>
-        </snapshots>
-      </repository>
-    </repositories>
-
   <distributionManagement>
     <snapshotRepository>
       <id>ossrh-fg</id>
@@ -48,7 +36,7 @@
 
   <properties>
      <sg2.version>6.x-HEAD-SNAPSHOT</sg2.version>
-     <elasticsearch.version>6.0.0-beta2</elasticsearch.version>
+     <elasticsearch.version>6.0.0-rc1</elasticsearch.version>
     <dependency.locations.enabled>false</dependency.locations.enabled>
   </properties>
 
@@ -147,6 +135,44 @@
       <version>1.7.7</version>
       <scope>test</scope>
     </dependency>
+    
+    
+    <dependency>
+      <groupId>org.elasticsearch.plugin</groupId>
+      <artifactId>reindex-client</artifactId>
+      <version>${elasticsearch.version}</version>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.elasticsearch.plugin</groupId>
+      <artifactId>percolator-client</artifactId>
+      <version>${elasticsearch.version}</version>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.elasticsearch.plugin</groupId>
+      <artifactId>lang-mustache-client</artifactId>
+      <version>${elasticsearch.version}</version>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.elasticsearch.plugin</groupId>
+      <artifactId>parent-join-client</artifactId>
+      <version>${elasticsearch.version}</version>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.elasticsearch.plugin</groupId>
+      <artifactId>aggs-matrix-stats-client</artifactId>
+      <version>${elasticsearch.version}</version>
+      <scope>test</scope>
+    </dependency>
+    
+    
   </dependencies>
 
   <build>

@@ -34,7 +34,7 @@ public class AuditlogTest {
                 .build();
         AbstractAuditLog al = new AuditLogImpl(settings, null, null, AbstractSGUnitTest.MOCK_POOL, null, null);
         TestAuditlogImpl.clear();
-        al.logAuthenticatedRequest(new ClusterHealthRequest(), "indices:data/read/search");
+        al.logGrantedPrivileges("indices:data/read/search", new ClusterHealthRequest());
         Assert.assertEquals(1, TestAuditlogImpl.messages.size());
     }
     
@@ -52,7 +52,7 @@ public class AuditlogTest {
                 .build();
         AbstractAuditLog al = new AuditLogImpl(settings, null,  null, AbstractSGUnitTest.MOCK_POOL, null, null);
         TestAuditlogImpl.clear();
-        al.logAuthenticatedRequest(sr, "indices:data/read/search");
+        al.logGrantedPrivileges("indices:data/read/search", sr);
         Assert.assertEquals(1, TestAuditlogImpl.messages.size());
     }
 }

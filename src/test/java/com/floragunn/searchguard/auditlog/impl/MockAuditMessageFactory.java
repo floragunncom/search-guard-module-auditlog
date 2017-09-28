@@ -20,6 +20,7 @@ import org.elasticsearch.rest.RestRequest;
 
 import com.floragunn.searchguard.auditlog.MockRestRequest;
 import com.floragunn.searchguard.auditlog.impl.AuditMessage.Category;
+import com.floragunn.searchguard.auditlog.AuditLog.Origin;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.user.User;
 
@@ -37,7 +38,7 @@ public class MockAuditMessageFactory {
 		tc.putTransient(ConfigConstants.SG_REMOTE_ADDRESS, "8.8.8.8");
 		tc.putTransient(ConfigConstants.SG_SSL_TRANSPORT_PRINCIPAL, "CN=kirk,OU=client,O=client,L=test,C=DE");
 		
-		AuditMessage msg = new AuditMessage(category, reason, details, holder, tc, true, null, null, Settings.EMPTY);
+		AuditMessage msg = new AuditMessage(category, null, Origin.TRANSPORT);
 		return msg;
 	}
 

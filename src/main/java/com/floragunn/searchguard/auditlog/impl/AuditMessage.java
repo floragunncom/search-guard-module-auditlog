@@ -15,158 +15,193 @@
 package com.floragunn.searchguard.auditlog.impl;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Date;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Objects;
 
 import org.apache.http.client.utils.URIBuilder;
 import org.elasticsearch.ExceptionsHelper;
-import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.Strings;
-import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.util.concurrent.ThreadContext;
+import org.elasticsearch.common.bytes.BytesReference;
+import org.elasticsearch.common.collect.Tuple;
+import org.elasticsearch.common.transport.TransportAddress;
+import org.elasticsearch.common.xcontent.XContentHelper;
+import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.common.xcontent.json.JsonXContent;
-import org.elasticsearch.http.netty4.Netty4HttpRequest;
-import org.elasticsearch.rest.RestRequest;
-import org.elasticsearch.transport.TransportRequest;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 
-import com.floragunn.searchguard.support.ConfigConstants;
-import com.floragunn.searchguard.user.User;
+import com.floragunn.searchguard.auditlog.AuditLog.Origin;
 
-public class AuditMessage {
+public final class AuditMessage {
+    
+    public static final String FORMAT_VERSION = "audit_format_version";
+    public static final String CATEGORY = "audit_category";
+    public static final String REQUEST_EFFECTIVE_USER = "audit_request_effective_user";
+    public static final String REQUEST_INITIATING_USER = "audit_request_initiating_user";
+    public static final String UTC_TIMESTAMP = "audit_utc_timestamp";
+    
+    public static final String NODE_ID = "audit_node_id";
+    public static final String NODE_HOST_ADDRESS = "audit_node_host_address";
+    public static final String NODE_HOST_NAME = "audit_node_host_name";
+    public static final String NODE_NAME = "audit_node_name";
+    
+    public static final String ORIGIN = "audit_request_origin";
+    public static final String REMOTE_ADDRESS = "audit_request_remote_address";
+    
+    public static final String REST_REQUEST_PATH = "audit_rest_request_path";
+    public static final String REST_REQUEST_BODY = "audit_rest_request_body";
+    public static final String REST_REQUEST_PARAMS = "audit_rest_request_params";
+    
+    public static final String REQUEST_TYPE = "audit_transport_request_type";
+    public static final String ACTION = "audit_transport_action";
+    
+    public static final String ID = "audit_trace_id";
+    public static final String TYPES = "audit_trace_types";
+    public static final String SOURCE = "audit_trace_source";
+    public static final String INDICES = "audit_trace_indices";
+    public static final String RESOLVED_INDICES = "audit_trace_resolved_indices";
+    
+    public static final String EXCEPTION = "audit_request_exception_stacktrace";
+    public static final String IS_ADMIN_DN = "audit_request_effective_user_is_admin";
+    public static final String PRIVILEGE = "audit_request_privilege";
 
     private static final DateTimeFormatter DEFAULT_FORMAT = DateTimeFormat.forPattern("yyyy-MM-dd'T'HH:mm:ss.SSSZZ");
-    protected final Map<String, Object> auditInfo = new HashMap<String, Object>(50);
-    protected final Category category;
+    private final Map<String, Object> auditInfo = new HashMap<String, Object>(50);
+    private final Category category;
 
-    public AuditMessage(final Category category, final Object reason, final Object details, 
-            final TransportRequest request, final ThreadContext threadContext, final boolean withRequestDetails
-            ,final IndexNameExpressionResolver resolver, final ClusterService clusterService, Settings settings) {
-    	this.category = category;
-    	
-    	final User user = threadContext.getTransient(ConfigConstants.SG_USER);
-        final String requestUser = user == null ? null : user.getName();
+    public AuditMessage(final Category category, final ClusterService clusterService, final Origin origin) {
+        this.category = Objects.requireNonNull(category);
         final String currentTime = currentTime();
+        auditInfo.put(FORMAT_VERSION, 3);
+        auditInfo.put(CATEGORY, Objects.requireNonNull(category));
+        auditInfo.put(UTC_TIMESTAMP, currentTime);
+        auditInfo.put(NODE_HOST_ADDRESS, Objects.requireNonNull(clusterService).localNode().getHostAddress());
+        auditInfo.put(NODE_ID, Objects.requireNonNull(clusterService).localNode().getId());
+        auditInfo.put(NODE_HOST_NAME, Objects.requireNonNull(clusterService).localNode().getHostName());
+        auditInfo.put(NODE_NAME, Objects.requireNonNull(clusterService).localNode().getName());
         
-        auditInfo.put(AuditMessageKey.FORMAT_VERSION, 2);
-        auditInfo.put(AuditMessageKey.CATEGORY, stringOrNull(category));
-        auditInfo.put(AuditMessageKey.REQUEST_USER, requestUser);
-        auditInfo.put(AuditMessageKey.REASON, stringOrNull(reason));
-        auditInfo.put(AuditMessageKey.DETAILS, stringOrNull(details));
-        auditInfo.put(AuditMessageKey.DATE, new Date().toString());
-        auditInfo.put(AuditMessageKey.UTC_TIMESTAMP, currentTime);
-        auditInfo.put(AuditMessageKey.REQUEST_HEADERS, stringOrNull(threadContext.getHeaders()));
-        auditInfo.put(AuditMessageKey.REQUEST_CLASS, request.getClass().toString());
-        auditInfo.put(AuditMessageKey.TYPE, "transport");
-        auditInfo.put(AuditMessageKey.REMOTE_ADDRESS, threadContext.getTransient(ConfigConstants.SG_REMOTE_ADDRESS));
-        auditInfo.put(AuditMessageKey.PRINCIPAL, threadContext.getTransient(ConfigConstants.SG_SSL_TRANSPORT_PRINCIPAL));
-        
-        if(withRequestDetails) {
+        if(origin != null) {
+            auditInfo.put(ORIGIN, origin);
+        }
+    }
+    
+    public void addRemoteAddress(TransportAddress remoteAddress) {
+        if (remoteAddress != null && remoteAddress.getAddress() != null) {
+            auditInfo.put(REMOTE_ADDRESS, remoteAddress.getAddress());
+        }
+    }
+    
+    public void addIsAdminDn(boolean isAdminDn) {
+        auditInfo.put(IS_ADMIN_DN, isAdminDn);
+    }
+    
+    public void addException(Throwable t) {
+        if (t != null) {
+            auditInfo.put(EXCEPTION, ExceptionsHelper.stackTrace(t));
+        }
+    }
+    
+    public void addPrivilege(String priv) {
+        if (priv != null) {
+            auditInfo.put(PRIVILEGE, priv);
+        }
+    }
+
+    public void addInitiatingUser(String user) {
+        if (user != null) {
+            auditInfo.put(REQUEST_INITIATING_USER, user);
+        }
+    }
+    
+    public void addEffectiveUser(String user) {
+        if (user != null) {
+            auditInfo.put(REQUEST_EFFECTIVE_USER, user);
+        }
+    }
+
+    public void addPath(String path) {
+        if (path != null) {
+            auditInfo.put(REST_REQUEST_PATH, path);
+        }
+    }
+
+    public void addBody(Tuple<XContentType, BytesReference> xContentTuple) {
+        if (xContentTuple != null) {
             try {
-                RequestResolver.resolve(request, auditInfo, resolver, clusterService, settings);
-            } catch (IOException e) {
-                throw ExceptionsHelper.convertToElastic(e);
+                auditInfo.put(REST_REQUEST_BODY, XContentHelper.convertToJson(xContentTuple.v2(), false, xContentTuple.v1()));
+            } catch (Exception e) {
+                auditInfo.put(REST_REQUEST_BODY, e.toString());
             }
         }
     }
-    
-    AuditMessage(final Category category, final Object reason, final Object details, final RestRequest request
-            , final ThreadContext threadContext, final boolean withRequestDetails,
-            final IndexNameExpressionResolver resolver, final ClusterService clusterService, Settings settings) {
-        this.category = category;
-        
-        final User user = threadContext.getTransient(ConfigConstants.SG_USER);
-        final String requestUser = user == null ? null : user.getName();
-        final String currentTime = currentTime();
-        
-        auditInfo.put(AuditMessageKey.FORMAT_VERSION, 2);
-        auditInfo.put(AuditMessageKey.CATEGORY, stringOrNull(category));
-        auditInfo.put(AuditMessageKey.REQUEST_USER, requestUser);
-        auditInfo.put(AuditMessageKey.REASON, stringOrNull(reason));
-        auditInfo.put(AuditMessageKey.DETAILS, stringOrNull(details));
-        auditInfo.put(AuditMessageKey.DATE, new Date().toString());
-        auditInfo.put(AuditMessageKey.UTC_TIMESTAMP, currentTime);
-        auditInfo.put(AuditMessageKey.REST_PATH, request.rawPath());
-        auditInfo.put(AuditMessageKey.REQUEST_HEADERS, stringOrNull(formatHeaders(request)));    
-        auditInfo.put(AuditMessageKey.REQUEST_CLASS, request.getClass().toString());
-        auditInfo.put(AuditMessageKey.TYPE, "rest");
-        auditInfo.put(AuditMessageKey.REMOTE_ADDRESS, threadContext.getTransient(ConfigConstants.SG_REMOTE_ADDRESS));
-        auditInfo.put(AuditMessageKey.PRINCIPAL, threadContext.getTransient(ConfigConstants.SG_SSL_TRANSPORT_PRINCIPAL));    
+
+    public void addRequestType(String requestType) {
+        if (requestType != null) {
+            auditInfo.put(REQUEST_TYPE, requestType);
+        }
     }
 
-    private static Iterable<Map.Entry<String, String>> formatHeaders(RestRequest request) {
-        if(request == null) {
-            return null;
+    public void addAction(String action) {
+        if (action != null) {
+            auditInfo.put(ACTION, action);
         }
-        
-        if((request instanceof Netty4HttpRequest)) {
-            return ((Netty4HttpRequest) request).request().headers().entries();
-        } else {
-            
-            List<Map.Entry<String, String>> result = new ArrayList<Map.Entry<String,String>>();
-            
-            for (String key: request.getHeaders().keySet()) {
-                List<String> values = request.getHeaders().get(key);
-                if(values != null && values.size() > 0) {
-                    result.add(new Map.Entry<String, String>() {
-
-                        @Override
-                        public String getKey() {
-                            return key;
-                        }
-
-                        @Override
-                        public String getValue() {
-                            return values.get(0);
-                        }
-
-                        @Override
-                        public String setValue(String value) {
-                            return null;
-                        }
-                        
-                        @Override
-                        public String toString() {
-                            return getKey()+"="+getValue(); 
-                        }
-                        
-                        @Override
-                        public int hashCode() {
-                            return toString().hashCode();
-                        }
-                        
-                        @Override
-                        public boolean equals(Object obj) {
-                            return toString().equals(obj);
-                        }
-                        
-                    });
-                }
-            }
-            
-            return result;
-            
-        }
-        
-        
     }
-    
-    
+
+    public void addId(String id) {
+        if (id != null) {
+            auditInfo.put(ID, id);
+        }
+    }
+
+    public void addTypes(String[] types) {
+        if (types != null && types.length > 0) {
+            auditInfo.put(TYPES, types);
+        }
+    }
+
+    public void addType(String type) {
+        if (type != null) {
+            auditInfo.put(TYPES, new String[] { type });
+        }
+    }
+
+    public void addSource(String source) {
+        if (source != null) {
+            auditInfo.put(SOURCE, source);
+        }
+    }
+
+    public void addIndices(String[] indices) {
+        if (indices != null && indices.length > 0) {
+            auditInfo.put(INDICES, indices);
+        }
+
+    }
+
+    public void addResolvedIndices(String[] resolvedIndices) {
+        if (resolvedIndices != null && resolvedIndices.length > 0) {
+            auditInfo.put(RESOLVED_INDICES, resolvedIndices);
+        }
+    }
+
+    // auditInfo.put(REST_REQUEST_PARAMS, stringOrNull(user));
+
     public Map<String, Object> getAsMap() {
       return Collections.unmodifiableMap(this.auditInfo);
     }
     
-    public String getUser() {
-        return (String) this.auditInfo.get(AuditMessageKey.REQUEST_USER);
+    public String getInitiatingUser() {
+        return (String) this.auditInfo.get(REQUEST_INITIATING_USER);
+    }
+    
+    public String getEffectiveUser() {
+        return (String) this.auditInfo.get(REQUEST_EFFECTIVE_USER);
     }
 
 	public Category getCategory() {
@@ -198,7 +233,7 @@ public class AuditMessage {
 		return builder.toString();
 	}
 
-	public String toJson() {
+	public final String toJson() {
 		return this.toString();
 	}
 
@@ -210,7 +245,7 @@ public class AuditMessage {
 		return builder.toString();
 	}
 	
-	private void addIfNonEmpty(StringBuilder builder, String key, String value) {
+	protected static void addIfNonEmpty(StringBuilder builder, String key, String value) {
 		if (!Strings.isEmpty(value)) {
 			if (builder.length() > 0) {
 				builder.append("\n");
@@ -223,6 +258,7 @@ public class AuditMessage {
         BAD_HEADERS,
         FAILED_LOGIN,
         MISSING_PRIVILEGES,
+        GRANTED_PRIVILEGES,
         SG_INDEX_ATTEMPT,
         SSL_EXCEPTION,
         AUTHENTICATED;
@@ -238,43 +274,8 @@ public class AuditMessage {
         }
 
     }
-	
-	protected static class AuditMessageKey {
-	    
-	    public static final String FORMAT_VERSION = "audit_format_version";
-	    public static final String DATE = "audit_date";
-	    public static final String CATEGORY = "audit_category";
-	    public static final String REQUEST_USER = "audit_request_user";
-	    public static final String REMOTE_ADDRESS = "audit_remote_address";
-	    public static final String REASON = "audit_reason";
-	    public static final String DETAILS = "audit_details";
-	    public static final String REQUEST_CLASS = "audit_request_class";
-	    public static final String REQUEST_CONTEXT = "audit_request_context";
-	    public static final String REQUEST_HEADERS = "audit_request_headers";
-	    public static final String PRINCIPAL = "audit_principal";
-	    public static final String UTC_TIMESTAMP = "audit_utc_timestamp";
-	    public static final String TYPE = "audit_request_type";
-        
-	    public static final String INDICES = "audit_trace_indices";
-	    public static final String RESOLVED_INDICES = "audit_trace_resolved_indices";
-	    public static final String TYPES = "audit_trace_index_types";
-	    public static final String CAUSE = "audit_trace_index_cause";
-	    public static final String SOURCE = "audit_trace_source";
-	    public static final String ID = "audit_trace_id";
-        
-	    public static final String NODE_ID = "audit_node_id";
-	    public static final String NODE_HOST = "audit_node_host";
-	    public static final String NODE_NAME = "audit_node_name";
-        
-	    public static final String SUBREQUEST_COUNT = "audit_trace_subrequest_count";
-        
-	    public static final String REST_PATH = "audit_request_path";
-	    
-	    public static final String INNER_CLASS = "audit_trace_inner_class";
-	    
-	}
 
-    protected String currentTime() {
+    private String currentTime() {
         DateTime dt = new DateTime(DateTimeZone.UTC);        
         return DEFAULT_FORMAT.print(dt);
     }

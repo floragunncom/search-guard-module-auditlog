@@ -103,6 +103,9 @@ public final class AuditLogImpl extends AbstractAuditLog {
 			case "debug":
 				delegate = new DebugAuditLog(settings, configPath, threadPool, resolver, clusterService);
 				break;
+			case "log4j":
+                delegate = new Log4JAuditLog(settings, configPath, threadPool, resolver, clusterService);
+                break;
 			default:
                 try {
                     Class<?> delegateClass = Class.forName(type);
@@ -208,11 +211,12 @@ public final class AuditLogImpl extends AbstractAuditLog {
     			@Override
     			public void run() {
     				delegate.save(msg);
-    				
     			}
     		});                    		    		
     	} catch(Exception ex) {
             log.error("Could not submit audit message to thread pool for delegate '{}' due to '{}'", delegate.getClass().getSimpleName(), ex.getMessage());                   		
     	}
     }
+
+
 }

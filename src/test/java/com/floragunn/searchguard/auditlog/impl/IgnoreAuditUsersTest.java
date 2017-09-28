@@ -53,7 +53,7 @@ public class IgnoreAuditUsersTest {
                 .build();
         AbstractAuditLog al = new AuditLogImpl(settings, null, null, newThreadPool(ConfigConstants.SG_USER, ignoreUserObj), null, null);
         TestAuditlogImpl.clear();
-        al.logAuthenticatedRequest(sr, "indices:data/read/search");
+        al.logGrantedPrivileges("indices:data/read/search", sr);
         Assert.assertEquals(0, TestAuditlogImpl.messages.size());
     }
 
@@ -66,7 +66,7 @@ public class IgnoreAuditUsersTest {
                 .put("searchguard.audit.threadpool.size", 0)
                 .build();
         AbstractAuditLog al = new AuditLogImpl(settings, null, null, newThreadPool(ConfigConstants.SG_USER, ignoreUserObj), null, null);        TestAuditlogImpl.clear();
-        al.logAuthenticatedRequest(sr, "indices:data/read/search");
+        al.logGrantedPrivileges("indices:data/read/search", sr);
         Assert.assertEquals(1, TestAuditlogImpl.messages.size());
     }
 
@@ -78,7 +78,7 @@ public class IgnoreAuditUsersTest {
                 .put("searchguard.audit.threadpool.size", 0)
                 .build();
         AbstractAuditLog al = new AuditLogImpl(settings, null, null, newThreadPool(ConfigConstants.SG_USER, ignoreUserObj), null, null);        TestAuditlogImpl.clear();
-        al.logAuthenticatedRequest(sr, "indices:data/read/search");
+        al.logGrantedPrivileges("indices:data/read/search", sr);
         Assert.assertEquals(1, TestAuditlogImpl.messages.size());
     }
 
@@ -106,7 +106,7 @@ public class IgnoreAuditUsersTest {
                                                                              ConfigConstants.SG_SSL_TRANSPORT_PRINCIPAL, "CN=kirk,OU=client,O=client,L=test,C=DE"
                                                                               ), null, null);
         TestAuditlogImpl.clear();
-        al.logAuthenticatedRequest(sr, "indices:data/read/search");
+        al.logGrantedPrivileges("indices:data/read/search", sr);
         Assert.assertEquals(0, TestAuditlogImpl.messages.size());
         
         settings = Settings.builder()
@@ -120,7 +120,7 @@ public class IgnoreAuditUsersTest {
                 ConfigConstants.SG_SSL_TRANSPORT_PRINCIPAL, "CN=kirk,OU=client,O=client,L=test,C=DE"
                  ), null, null);
         TestAuditlogImpl.clear();
-        al.logAuthenticatedRequest(sr, "indices:data/read/search");
+        al.logGrantedPrivileges("indices:data/read/search", sr);
         Assert.assertEquals(1, TestAuditlogImpl.messages.size());
         
         settings = Settings.builder()
@@ -134,7 +134,7 @@ public class IgnoreAuditUsersTest {
                 ConfigConstants.SG_SSL_TRANSPORT_PRINCIPAL, "CN=kirk,OU=client,O=client,L=test,C=DE"
                  ), null, null);
         TestAuditlogImpl.clear();
-        al.logAuthenticatedRequest(sr, "indices:data/read/search");
+        al.logGrantedPrivileges("indices:data/read/search", sr);
         al.logSgIndexAttempt(sr, "indices:data/read/search");
         al.logMissingPrivileges("indices:data/read/search",sr);
         Assert.assertEquals(0, TestAuditlogImpl.messages.size());
@@ -150,7 +150,7 @@ public class IgnoreAuditUsersTest {
                 ConfigConstants.SG_SSL_TRANSPORT_PRINCIPAL, "CN=kirk,OU=client,O=client,L=test,C=DE"
                  ), null, null);
         TestAuditlogImpl.clear();
-        al.logAuthenticatedRequest(sr, "indices:data/read/search");
+        al.logGrantedPrivileges("indices:data/read/search", sr);
         Assert.assertEquals(1, TestAuditlogImpl.messages.size());
     }
     
