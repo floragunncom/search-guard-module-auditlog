@@ -19,6 +19,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import org.elasticsearch.action.ActionRequest;
@@ -39,6 +40,7 @@ import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.search.MultiSearchRequest;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.support.IndicesOptions;
+import org.elasticsearch.action.support.WriteRequest;
 import org.elasticsearch.action.termvectors.MultiTermVectorsRequest;
 import org.elasticsearch.action.termvectors.TermVectorsRequest;
 import org.elasticsearch.action.update.UpdateRequest;
@@ -52,6 +54,8 @@ import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.index.reindex.DeleteByQueryRequest;
 import org.elasticsearch.index.reindex.ReindexRequest;
 import org.elasticsearch.index.reindex.UpdateByQueryRequest;
+import org.elasticsearch.tasks.Task;
+import org.elasticsearch.tasks.TaskId;
 import org.elasticsearch.transport.TransportRequest;
 
 import com.floragunn.searchguard.auditlog.impl.AuditMessage.Category;
@@ -59,65 +63,129 @@ import com.floragunn.searchguard.auditlog.AuditLog.Origin;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.support.WildcardMatcher;
 
-public class RequestResolver {
+public final class RequestResolver {
     
-    public static List<AuditMessage> resolve(final Category category, final Origin origin, final String action, final String privilege, final String effectiveUser, final Boolean sgAdmin, final String initiatingUser, final TransportAddress remoteAddress, final TransportRequest request,
-            final IndexNameExpressionResolver resolver, final ClusterService cs, final Settings settings, final boolean withDetails, final boolean resolveBulk, final Throwable exception)  {
+    public static List<AuditMessage> resolve(
+            final Category category, 
+            final Origin origin, 
+            final String action, 
+            final String privilege, 
+            final String effectiveUser, 
+            final Boolean sgAdmin, 
+            final String initiatingUser, 
+            final TransportAddress remoteAddress, 
+            final TransportRequest request,
+            final Map<String, String> headers,
+            final Task task,
+            final IndexNameExpressionResolver resolver, 
+            final ClusterService cs, 
+            final Settings settings, 
+            final boolean withDetails, 
+            final boolean resolveBulk, 
+            final Throwable exception)  {
+        
+        //final List<AuditMessage> messages = new ArrayList<AuditMessage>(1000);
+        
+//        if(resolveBulk) {
+//            if (request instanceof CompositeIndicesRequest) {
+//
+//                if(request instanceof BulkShardRequest) {
+//
+//                    for(BulkItemRequest ar: ((BulkShardRequest) request).items()) {
+//                        messages.add(resolveInner(category, effectiveUser, sgAdmin, initiatingUser, remoteAddress, action, privilege, origin, ar.request(), resolver, cs, settings, withDetails, exception));
+//                    }}else
+//                
+//                if(request instanceof BulkRequest) {
+//
+//                    for(DocWriteRequest<?> ar: ((BulkRequest) request).requests()) {
+//                        messages.add(resolveInner(category, effectiveUser, sgAdmin, initiatingUser, remoteAddress, action, privilege, origin, ar, resolver, cs, settings, withDetails, exception));
+//                    }
+//                    
+////                } else if(request instanceof MultiGetRequest) {
+////                    
+////                    for(Item item: ((MultiGetRequest) request).getItems()) {
+////                        messages.add(resolveInner(category, effectiveUser, sgAdmin, initiatingUser, remoteAddress, action, privilege, origin, item, resolver, cs, settings, withDetails, exception));
+////                    }
+//                    
+//                //} else if(request instanceof MultiSearchRequest) {
+//                    
+//                    //    for(ActionRequest ar: ((MultiSearchRequest) request).requests()) {
+//                    //   messages.add(resolveInner(category, effectiveUser, sgAdmin, initiatingUser, remoteAddress, action, privilege, origin, ar, resolver, cs, settings, withDetails, exception));
+//                    //}
+//                    
+//                } else if(request instanceof MultiTermVectorsRequest) {
+////                    
+////                    for(ActionRequest ar: (Iterable<TermVectorsRequest>) () -> ((MultiTermVectorsRequest) request).iterator()) {
+////                        messages.add(resolveInner(category, effectiveUser, sgAdmin, initiatingUser, remoteAddress, action, privilege, origin, ar, resolver, cs, settings, withDetails, exception));
+////                    }
+//                    
+//                    
+//                } else {
+//                    //log.debug("Can not handle composite request of type '"+request+"' here");
+//                }
+//                
+//            } else {
+//                messages.add(resolveInner(category, effectiveUser, sgAdmin, initiatingUser, remoteAddress, action, privilege, origin, request, resolver, cs, settings, withDetails, exception));
+//            }
+//            
+//        } else {
+//            messages.add(resolveInner(category, effectiveUser, sgAdmin, initiatingUser, remoteAddress, action, privilege, origin, request, resolver, cs, settings, withDetails, exception));
+//        }
+        
+        //return messages;
+        
+        if(resolveBulk && request instanceof BulkShardRequest) { 
+            
+            final BulkItemRequest[] innerRequests = ((BulkShardRequest) request).items();
+            final List<AuditMessage> messages = new ArrayList<AuditMessage>(innerRequests.length);
+            
+            for(BulkItemRequest ar: innerRequests) {
+                final DocWriteRequest innerRequest = ar.request();
+                messages.add(resolveInner(
+                        category, 
+                        effectiveUser, 
+                        sgAdmin, 
+                        initiatingUser, 
+                        remoteAddress, 
+                        action, 
+                        privilege, 
+                        origin, 
+                        innerRequest,
+                        headers,
+                        task,
+                        resolver, 
+                        cs, 
+                        settings, 
+                        withDetails, 
+                        exception));
+            }
+            
+            return messages;
+        }
         
         if(request instanceof BulkShardRequest) {
             return Collections.EMPTY_LIST;
         }
         
-        final List<AuditMessage> messages = new ArrayList<AuditMessage>(1000);
-        
-        if(resolveBulk) {
-            if (request instanceof CompositeIndicesRequest) {
-
-                if(request instanceof BulkShardRequest) {
-
-                    for(BulkItemRequest ar: ((BulkShardRequest) request).items()) {
-                        messages.add(resolveInner(category, effectiveUser, sgAdmin, initiatingUser, remoteAddress, action, privilege, origin, ar.request(), resolver, cs, settings, withDetails, exception));
-                    }}else
-                
-                if(request instanceof BulkRequest) {
-
-                    for(DocWriteRequest<?> ar: ((BulkRequest) request).requests()) {
-                        messages.add(resolveInner(category, effectiveUser, sgAdmin, initiatingUser, remoteAddress, action, privilege, origin, ar, resolver, cs, settings, withDetails, exception));
-                    }
-                    
-//                } else if(request instanceof MultiGetRequest) {
-//                    
-//                    for(Item item: ((MultiGetRequest) request).getItems()) {
-//                        messages.add(resolveInner(category, effectiveUser, sgAdmin, initiatingUser, remoteAddress, action, privilege, origin, item, resolver, cs, settings, withDetails, exception));
-//                    }
-                    
-                //} else if(request instanceof MultiSearchRequest) {
-                    
-                    //    for(ActionRequest ar: ((MultiSearchRequest) request).requests()) {
-                    //   messages.add(resolveInner(category, effectiveUser, sgAdmin, initiatingUser, remoteAddress, action, privilege, origin, ar, resolver, cs, settings, withDetails, exception));
-                    //}
-                    
-//                } else if(request instanceof MultiTermVectorsRequest) {
-//                    
-//                    for(ActionRequest ar: (Iterable<TermVectorsRequest>) () -> ((MultiTermVectorsRequest) request).iterator()) {
-//                        messages.add(resolveInner(category, effectiveUser, sgAdmin, initiatingUser, remoteAddress, action, privilege, origin, ar, resolver, cs, settings, withDetails, exception));
-//                    }
-                    
-                    
-                } else {
-                    //log.debug("Can not handle composite request of type '"+request+"' here");
-                }
-                
-            } else {
-                messages.add(resolveInner(category, effectiveUser, sgAdmin, initiatingUser, remoteAddress, action, privilege, origin, request, resolver, cs, settings, withDetails, exception));
-            }
-            
-        } else {
-            messages.add(resolveInner(category, effectiveUser, sgAdmin, initiatingUser, remoteAddress, action, privilege, origin, request, resolver, cs, settings, withDetails, exception));
-        }
-        
-        return messages;
+        return Collections.singletonList(resolveInner(
+                category, 
+                effectiveUser, 
+                sgAdmin, 
+                initiatingUser, 
+                remoteAddress, 
+                action, 
+                privilege, 
+                origin, 
+                request,
+                headers,
+                task,
+                resolver, 
+                cs, 
+                settings, 
+                withDetails, 
+                exception));
     }
+    
 
     private static AuditMessage resolveInner(final Category category,
             final String effectiveUser,
@@ -128,6 +196,8 @@ public class RequestResolver {
             final String priv,
             final Origin origin, 
             final Object request,
+            final Map<String, String> headers,
+            final Task task,
             final IndexNameExpressionResolver resolver, 
             final ClusterService cs,
             final Settings settings,
@@ -147,7 +217,16 @@ public class RequestResolver {
         
         msg.addException(exception);
         msg.addPrivilege(priv);
+        msg.addTransportHeaders(headers);
         
+        if(task != null) {
+            msg.addTaskId(task.getId());
+            if(task.getParentTaskId().isSet()) {
+                msg.addTaskParentId(task.getParentTaskId().toString());
+            }
+        }
+        
+        //attempt to resolve indices/types/id/source 
         if (request instanceof MultiGetRequest.Item) {
             final MultiGetRequest.Item item = (MultiGetRequest.Item) request;
             final String[] indices = arrayOrEmpty(item.indices());
@@ -162,12 +241,14 @@ public class RequestResolver {
             final CreateIndexRequest cir = (CreateIndexRequest) request;
             final String[] indices = arrayOrEmpty(cir.indices());
             if(withDetails) {
-            addIndicesSourceSafe(msg, indices, resolver, cs, null, settings, false);}
+                addIndicesSourceSafe(msg, indices, resolver, cs, null, settings, false);
+            }
         } else if (request instanceof DeleteIndexRequest) {
             final DeleteIndexRequest dir = (DeleteIndexRequest) request;
             final String[] indices = arrayOrEmpty(dir.indices());
             if(withDetails) {
-            addIndicesSourceSafe(msg, indices, resolver, cs, null, settings, false);}
+                addIndicesSourceSafe(msg, indices, resolver, cs, null, settings, false);
+            }
         } else if (request instanceof IndexRequest) {
             final IndexRequest ir = (IndexRequest) request;
             final String[] indices = arrayOrEmpty(ir.indices());
@@ -176,7 +257,8 @@ public class RequestResolver {
             msg.addType(type);
             msg.addId(id);
             if(withDetails) {
-            addIndicesSourceSafe(msg, indices, resolver, cs, ir.source(), settings, true);}
+                addIndicesSourceSafe(msg, indices, resolver, cs, ir.source(), settings, true);
+            }
         } else if (request instanceof DeleteRequest) {
             final DeleteRequest dr = (DeleteRequest) request;
             final String[] indices = arrayOrEmpty(dr.indices());
@@ -185,7 +267,8 @@ public class RequestResolver {
             msg.addType(type);
             msg.addId(id);
             if(withDetails) {
-            addIndicesSourceSafe(msg, indices, resolver, cs, null, settings, false);}
+                addIndicesSourceSafe(msg, indices, resolver, cs, null, settings, false);
+            }
         } else if (request instanceof UpdateRequest) {
             final UpdateRequest ur = (UpdateRequest) request;
             final String[] indices = arrayOrEmpty(ur.indices());
@@ -194,15 +277,16 @@ public class RequestResolver {
             msg.addType(type);
             msg.addId(id);
             if(withDetails) {
-            addIndicesSourceSafe(msg, indices, resolver, cs, null, settings, false);
-
-            if (ur.doc() != null) {
-                msg.addSource(ur.doc() == null ? null :sourceToString(ur.doc().source()));
+                addIndicesSourceSafe(msg, indices, resolver, cs, null, settings, false);
+    
+                if (ur.doc() != null) {
+                    msg.addSource(ur.doc() == null ? null :sourceToString(ur.doc().source()));
+                }
+    
+                if (ur.script() != null) {
+                    msg.addSource(ur.script() == null ? null : XContentHelper.toString(ur.script()));
+                }
             }
-
-            if (ur.script() != null) {
-                msg.addSource(ur.script() == null ? null : XContentHelper.toString(ur.script()));
-            }}
         } else if (request instanceof GetRequest) {
             final GetRequest gr = (GetRequest) request;
             final String[] indices = arrayOrEmpty(gr.indices());
@@ -211,29 +295,32 @@ public class RequestResolver {
             msg.addType(type);
             msg.addId(id);
             if(withDetails) {
-            addIndicesSourceSafe(msg, indices, resolver, cs, null, settings, false);}
+                addIndicesSourceSafe(msg, indices, resolver, cs, null, settings, false);
+            }
         } else if (request instanceof SearchRequest) {
             final SearchRequest sr = (SearchRequest) request;
             final String[] indices = arrayOrEmpty(sr.indices());
             final String[] types = arrayOrEmpty(sr.types());
             msg.addTypes(types);
             if(withDetails) {
-            addIndicesSourceSafe(msg, indices, resolver, cs, sr.source() == null? null:sr.source().buildAsBytes(), settings, false);}
+                addIndicesSourceSafe(msg, indices, resolver, cs, sr.source() == null? null:sr.source().buildAsBytes(), settings, false);
+            }
         } else if (request instanceof UpdateRequest) {
             final UpdateRequest ur = (UpdateRequest) request;
             final String[] indices = arrayOrEmpty(ur.indices());
             final String id = ur.id();
             msg.addId(id);
             if(withDetails) {
-            addIndicesSourceSafe(msg, indices, resolver, cs, ur.doc() == null? null: ur.doc().source(), settings, true);}
+                addIndicesSourceSafe(msg, indices, resolver, cs, ur.doc() == null? null: ur.doc().source(), settings, true);
+            }
         } else if (request instanceof ClusterUpdateSettingsRequest) {
-            
             if(withDetails) {
-            final ClusterUpdateSettingsRequest cusr = (ClusterUpdateSettingsRequest) request;
-            final Settings persistentSettings = cusr.persistentSettings();
-            final Settings transientSettings = cusr.transientSettings();
-            msg.addSource("persistent: "+String.valueOf(persistentSettings == null?Collections.EMPTY_MAP:persistentSettings.getAsMap())
-                         +";transient: "+String.valueOf(transientSettings == null?Collections.EMPTY_MAP:transientSettings.getAsMap()));  }
+                final ClusterUpdateSettingsRequest cusr = (ClusterUpdateSettingsRequest) request;
+                final Settings persistentSettings = cusr.persistentSettings();
+                final Settings transientSettings = cusr.transientSettings();
+                msg.addSource("persistent: "+String.valueOf(persistentSettings == null?Collections.EMPTY_MAP:persistentSettings.getAsMap())
+                             +";transient: "+String.valueOf(transientSettings == null?Collections.EMPTY_MAP:transientSettings.getAsMap()));  
+            }
         } else if (request instanceof ReindexRequest) {
             final ReindexRequest ir = (ReindexRequest) request;
             final String[] indices = new String[0];//arrayOrEmpty(ir.indices());
@@ -258,8 +345,6 @@ public class RequestResolver {
             if(withDetails) {
                 addIndicesSourceSafe(msg, indices, resolver, cs, null, settings, false);
             }
-        } else {
-            //we do not support this kind of request
         }
         
         return msg;

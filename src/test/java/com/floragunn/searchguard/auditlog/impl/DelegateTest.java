@@ -30,7 +30,7 @@ public class DelegateTest {
 		testAuditType("idonotexist", null);
 	}
 		
-	private void testAuditType(String type, Class<? extends AbstractAuditLog> expectedClass) throws Exception {
+	private void testAuditType(String type, Class<? extends AuditLogSink> expectedClass) throws Exception {
 		Builder settingsBuilder  = Settings.builder();
 		settingsBuilder.put("searchguard.audit.type", type);
 		settingsBuilder.put("path.home", ".");

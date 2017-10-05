@@ -14,16 +14,33 @@
 
 package com.floragunn.searchguard.auditlog.impl;
 
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthRequest;
 import org.elasticsearch.action.search.SearchRequest;
+import org.elasticsearch.cluster.node.DiscoveryNode;
+import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.settings.Settings;
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.Test;
 
 import com.floragunn.searchguard.dlic.auditlog.TestAuditlogImpl;
 import com.floragunn.searchguard.test.AbstractSGUnitTest;
 
 public class AuditlogTest {
+    
+    ClusterService cs = mock(ClusterService.class);
+    DiscoveryNode dn = mock(DiscoveryNode.class);
+    
+    @Before
+    public void setup() {
+        when(dn.getHostAddress()).thenReturn("hostaddress");
+        when(dn.getId()).thenReturn("hostaddress");
+        when(dn.getHostName()).thenReturn("hostaddress");
+        when(cs.localNode()).thenReturn(dn);
+    }
 
     @Test
     public void testClusterHealthRequest() {
@@ -32,9 +49,9 @@ public class AuditlogTest {
                 .put("searchguard.audit.enable_request_details", true)
                 .put("searchguard.audit.threadpool.size", 0)
                 .build();
-        AbstractAuditLog al = new AuditLogImpl(settings, null, null, AbstractSGUnitTest.MOCK_POOL, null, null);
+        AbstractAuditLog al = new AuditLogImpl(settings, null, null, AbstractSGUnitTest.MOCK_POOL, null, cs);
         TestAuditlogImpl.clear();
-        al.logGrantedPrivileges("indices:data/read/search", new ClusterHealthRequest());
+        al.logGrantedPrivileges("indices:data/read/search", new ClusterHealthRequest(), null);
         Assert.assertEquals(1, TestAuditlogImpl.messages.size());
     }
     
@@ -50,9 +67,9 @@ public class AuditlogTest {
                 .put("searchguard.audit.enable_request_details", true)
                 .put("searchguard.audit.threadpool.size", 0)
                 .build();
-        AbstractAuditLog al = new AuditLogImpl(settings, null,  null, AbstractSGUnitTest.MOCK_POOL, null, null);
+        AbstractAuditLog al = new AuditLogImpl(settings, null,  null, AbstractSGUnitTest.MOCK_POOL, null, cs);
         TestAuditlogImpl.clear();
-        al.logGrantedPrivileges("indices:data/read/search", sr);
+        al.logGrantedPrivileges("indices:data/read/search", sr, null);
         Assert.assertEquals(1, TestAuditlogImpl.messages.size());
     }
 }

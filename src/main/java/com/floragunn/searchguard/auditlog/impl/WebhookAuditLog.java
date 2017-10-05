@@ -42,7 +42,7 @@ import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.threadpool.ThreadPool;
 
-class WebhookAuditLog extends AbstractAuditLog {
+class WebhookAuditLog extends AuditLogSink {
 	
 	/* HttpClient is thread safe */
 	//private final static CloseableHttpClient httpClient = HttpClients.createDefault();
@@ -94,7 +94,7 @@ class WebhookAuditLog extends AbstractAuditLog {
 	}
 
 	@Override
-	protected void save(AuditMessage msg) {
+	public void store(AuditMessage msg) {
 		if (Strings.isEmpty(webhookUrl)) {
 			log.debug("Webhook URL is null");
 			return;

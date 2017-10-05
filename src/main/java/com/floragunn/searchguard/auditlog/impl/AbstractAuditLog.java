@@ -16,6 +16,7 @@ package com.floragunn.searchguard.auditlog.impl;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -24,11 +25,9 @@ import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.rest.RestRequest;
+import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportRequest;
-import org.joda.time.DateTime;
-import org.joda.time.DateTimeZone;
-import org.joda.time.format.DateTimeFormatter;
 
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.auditlog.impl.AuditMessage.Category;
@@ -46,6 +45,7 @@ public abstract class AbstractAuditLog implements AuditLog {
     protected final boolean withRequestDetails;
     protected final boolean resolveBulkRequests;
     private final String[] ignoreAuditUsers;
+    private final String[] ignoreAuditRequests;
 
     protected AbstractAuditLog(Settings settings, final ThreadPool threadPool, final IndexNameExpressionResolver resolver, final ClusterService clusterService) {
         super();
@@ -64,6 +64,11 @@ public abstract class AbstractAuditLog implements AuditLog {
             log.info("Configured Users to ignore: {}", Arrays.toString(ignoreAuditUsers));
         }
         
+        ignoreAuditRequests = settings.getAsArray("searchguard.audit.ignore_requests", new String[]{});
+        if (ignoreAuditUsers.length > 0) {
+            log.info("Configured Requests to ignore: {}", Arrays.toString(ignoreAuditRequests));
+        }
+        
         // check if some categories are disabled
         for (String event : disabledCategories) {
         	try {
@@ -75,169 +80,200 @@ public abstract class AbstractAuditLog implements AuditLog {
 		}
     }
     
-    
-
     @Override
-    public void logFailedLogin(String effectiveUser, boolean sgadmin, String initiatingUser, TransportRequest request) {
+    public void logFailedLogin(String effectiveUser, boolean sgadmin, String initiatingUser, TransportRequest request, Task task) {
         final String action = null;
+        
+        if(!checkFilter(Category.FAILED_LOGIN, action, effectiveUser, request)) {
+            return;
+        }
+        
         final TransportAddress remoteAddress = getRemoteAddress();
-        final List<AuditMessage> msgs = RequestResolver.resolve(Category.FAILED_LOGIN, getOrigin(), action, null, effectiveUser, sgadmin, initiatingUser, remoteAddress, request, resolver, clusterService, settings, withRequestDetails, resolveBulkRequests, null);
+        final List<AuditMessage> msgs = RequestResolver.resolve(Category.FAILED_LOGIN, getOrigin(), action, null, effectiveUser, sgadmin, initiatingUser, remoteAddress, request, getThreadContextHeaders(), task, resolver, clusterService, settings, withRequestDetails, resolveBulkRequests, null);
         
         for(AuditMessage msg: msgs) {
-            checkAndSave(request, action, msg);
+            save(msg);
         }
     }
 
 
-
     @Override
     public void logFailedLogin(String effectiveUser, boolean sgadmin, String initiatingUser, RestRequest request) {
+        
+        if(!checkFilter(Category.FAILED_LOGIN, effectiveUser, request)) {
+            return;
+        }
+        
         AuditMessage msg = new AuditMessage(Category.FAILED_LOGIN, clusterService, getOrigin());
         TransportAddress remoteAddress = getRemoteAddress();
         msg.addRemoteAddress(remoteAddress);
-        if(request.hasContentOrSourceParam()) {
+        if(withRequestDetails && request.hasContentOrSourceParam()) {
             msg.addBody(request.contentOrSourceParam());
         }
         msg.addPath(request.path());
         msg.addInitiatingUser(initiatingUser);
         msg.addEffectiveUser(effectiveUser);
         msg.addIsAdminDn(sgadmin);
-
-        //msg.addparams
-        //header?
-        checkAndSave(request, null, msg);
+        msg.addRestHeaders(request.getHeaders());
+        msg.addRestParams(request.params());
+        save(msg);
     }
 
-
-
     @Override
-    public void logSucceededLogin(String effectiveUser, boolean sgadmin, String initiatingUser, TransportRequest request) {
+    public void logSucceededLogin(String effectiveUser, boolean sgadmin, String initiatingUser, TransportRequest request, Task task) {
         final String action = null;
+        
+        if(!checkFilter(Category.AUTHENTICATED, action, effectiveUser, request)) {
+            return;
+        }
+        
         final TransportAddress remoteAddress = getRemoteAddress();
-        final List<AuditMessage> msgs = RequestResolver.resolve(Category.AUTHENTICATED, getOrigin(), action, null, effectiveUser, sgadmin, initiatingUser,remoteAddress, request, resolver, clusterService, settings, withRequestDetails, resolveBulkRequests, null);
+        final List<AuditMessage> msgs = RequestResolver.resolve(Category.AUTHENTICATED, getOrigin(), action, null, effectiveUser, sgadmin, initiatingUser,remoteAddress, request, getThreadContextHeaders(), task, resolver, clusterService, settings, withRequestDetails, resolveBulkRequests, null);
         
         for(AuditMessage msg: msgs) {
-            checkAndSave(request, action, msg);
+            save(msg);
         }
     }
 
-
-
     @Override
     public void logSucceededLogin(String effectiveUser, boolean sgadmin, String initiatingUser, RestRequest request) {
+        
+        if(!checkFilter(Category.AUTHENTICATED, effectiveUser, request)) {
+            return;
+        }
+        
         AuditMessage msg = new AuditMessage(Category.AUTHENTICATED, clusterService, getOrigin());
         TransportAddress remoteAddress = getRemoteAddress();
         msg.addRemoteAddress(remoteAddress);
-        if(request.hasContentOrSourceParam()) {
+        if(withRequestDetails && request.hasContentOrSourceParam()) {
            msg.addBody(request.contentOrSourceParam());
         }
         msg.addPath(request.path());
         msg.addInitiatingUser(initiatingUser);
         msg.addEffectiveUser(effectiveUser);
         msg.addIsAdminDn(sgadmin);
-
-        //msg.addparams
-        //header?
-        checkAndSave(request, null, msg);
+        msg.addRestHeaders(request.getHeaders());
+        msg.addRestParams(request.params());
+        save(msg);
     }
 
-
-
     @Override
-    public void logMissingPrivileges(String privilege, TransportRequest request) {
+    public void logMissingPrivileges(String privilege, TransportRequest request, Task task) {
         final String action = null;
+        
+        if(!checkFilter(Category.MISSING_PRIVILEGES, privilege, null, request)) {
+            return;
+        }
+        
         final TransportAddress remoteAddress = getRemoteAddress();
-        final List<AuditMessage> msgs = RequestResolver.resolve(Category.MISSING_PRIVILEGES, getOrigin(), action, privilege, getUser(), null, null, remoteAddress, request, resolver, clusterService, settings, withRequestDetails, resolveBulkRequests, null);
+        final List<AuditMessage> msgs = RequestResolver.resolve(Category.MISSING_PRIVILEGES, getOrigin(), action, privilege, getUser(), null, null, remoteAddress, request, getThreadContextHeaders(), task, resolver, clusterService, settings, withRequestDetails, resolveBulkRequests, null);
         
         for(AuditMessage msg: msgs) {
-            checkAndSave(request, action, msg);
+            save(msg);
         }
     }
 
-
-
     @Override
-    public void logGrantedPrivileges(String privilege, TransportRequest request) {
+    public void logGrantedPrivileges(String privilege, TransportRequest request, Task task) {
         final String action = null;
+        
+        if(!checkFilter(Category.GRANTED_PRIVILEGES, privilege, null, request)) {
+            return;
+        }
+        
         final TransportAddress remoteAddress = getRemoteAddress();
-        final List<AuditMessage> msgs = RequestResolver.resolve(Category.GRANTED_PRIVILEGES, getOrigin(), action, privilege, getUser(), null, null, remoteAddress, request, resolver, clusterService, settings, withRequestDetails, resolveBulkRequests, null);
+        final List<AuditMessage> msgs = RequestResolver.resolve(Category.GRANTED_PRIVILEGES, getOrigin(), action, privilege, getUser(), null, null, remoteAddress, request, getThreadContextHeaders(), task, resolver, clusterService, settings, withRequestDetails, resolveBulkRequests, null);
         
         for(AuditMessage msg: msgs) {
-            checkAndSave(request, action, msg);
+            save(msg);
         }
     }
-
-
 
     @Override
-    public void logBadHeaders(TransportRequest request, String action) {
+    public void logBadHeaders(TransportRequest request, String action, Task task) {
+        
+        if(!checkFilter(Category.BAD_HEADERS, action, null, request)) {
+            return;
+        }
+        
         final TransportAddress remoteAddress = getRemoteAddress();
-        final List<AuditMessage> msgs = RequestResolver.resolve(Category.BAD_HEADERS, getOrigin(), action, null, getUser(), null, null, remoteAddress, request, resolver, clusterService, settings, withRequestDetails, resolveBulkRequests, null);
+        final List<AuditMessage> msgs = RequestResolver.resolve(Category.BAD_HEADERS, getOrigin(), action, null, getUser(), null, null, remoteAddress, request, getThreadContextHeaders(), task, resolver, clusterService, settings, withRequestDetails, resolveBulkRequests, null);
         
         for(AuditMessage msg: msgs) {
-            checkAndSave(request, action, msg);
+            save(msg);
         }
     }
-
-
 
     @Override
     public void logBadHeaders(RestRequest request) {
+        
+        if(!checkFilter(Category.BAD_HEADERS, null, request)) {
+            return;
+        }
+        
         AuditMessage msg = new AuditMessage(Category.BAD_HEADERS, clusterService, getOrigin());
         TransportAddress remoteAddress = getRemoteAddress();
         msg.addRemoteAddress(remoteAddress);
-        if(request.hasContentOrSourceParam()) {
+        if(withRequestDetails && request.hasContentOrSourceParam()) {
             msg.addBody(request.contentOrSourceParam());
         }
         msg.addPath(request.path());
-        msg.addEffectiveUser(getUser());
+        msg.addEffectiveUser(getUser());        
+        msg.addRestHeaders(request.getHeaders());
+        msg.addRestParams(request.params());
 
-        //msg.addparams
-        //header?
-        checkAndSave(request, null, msg);
+        save(msg);
     }
 
-
-
     @Override
-    public void logSgIndexAttempt(TransportRequest request, String action) {
+    public void logSgIndexAttempt(TransportRequest request, String action, Task task) {
+        
+        if(!checkFilter(Category.SG_INDEX_ATTEMPT, action, null, request)) {
+            return;
+        }
+        
         final TransportAddress remoteAddress = getRemoteAddress();
-        final List<AuditMessage> msgs = RequestResolver.resolve(Category.SG_INDEX_ATTEMPT, getOrigin(), action, null, null, false, null, remoteAddress, request, resolver, clusterService, settings, withRequestDetails, resolveBulkRequests, null);
+        final List<AuditMessage> msgs = RequestResolver.resolve(Category.SG_INDEX_ATTEMPT, getOrigin(), action, null, null, false, null, remoteAddress, request, getThreadContextHeaders(), task, resolver, clusterService, settings, withRequestDetails, resolveBulkRequests, null);
         
         for(AuditMessage msg: msgs) {
-            checkAndSave(request, action, msg);
+            save(msg);
         }
     }
 
-
-
     @Override
-    public void logSSLException(TransportRequest request, Throwable t, String action) { 
+    public void logSSLException(TransportRequest request, Throwable t, String action, Task task) { 
+        
+        if(!checkFilter(Category.SSL_EXCEPTION, action, null, request)) {
+            return;
+        }
+        
         final TransportAddress remoteAddress = getRemoteAddress();
-        final List<AuditMessage> msgs = RequestResolver.resolve(Category.SSL_EXCEPTION, getOrigin(), action, null, null, false, null, remoteAddress, request, resolver, clusterService, settings, withRequestDetails, resolveBulkRequests, t);
+        final List<AuditMessage> msgs = RequestResolver.resolve(Category.SSL_EXCEPTION, getOrigin(), action, null, null, false, null, remoteAddress, request, getThreadContextHeaders(), task, resolver, clusterService, settings, withRequestDetails, resolveBulkRequests, t);
         
         for(AuditMessage msg: msgs) {
-            checkAndSave(request, action, msg);
+            save(msg);
         }
     }
-
-
 
     @Override
     public void logSSLException(RestRequest request, Throwable t) {
+        
+        if(!checkFilter(Category.SSL_EXCEPTION, null, request)) {
+            return;
+        }
+        
         AuditMessage msg = new AuditMessage(Category.SSL_EXCEPTION, clusterService, getOrigin());
         TransportAddress remoteAddress = getRemoteAddress();
         msg.addRemoteAddress(remoteAddress);
-        if(request.hasContentOrSourceParam()) {
+        if(withRequestDetails && request.hasContentOrSourceParam()) {
             msg.addBody(request.contentOrSourceParam());
         }
         msg.addPath(request.path());
         msg.addException(t);
         msg.addEffectiveUser(getUser());
-
-        //msg.addparams
-        //header?
-        checkAndSave(request, null, msg);
+        msg.addRestHeaders(request.getHeaders());
+        msg.addRestParams(request.params());
+        save(msg);
     }
 
     private Origin getOrigin() {
@@ -250,16 +286,41 @@ public abstract class AbstractAuditLog implements AuditLog {
     }
     
     private String getUser() {
-        User user = threadPool.getThreadContext().getTransient(ConfigConstants.SG_USER);
+        final User user = threadPool.getThreadContext().getTransient(ConfigConstants.SG_USER);
         return user==null?null:user.getName();
     }
+    
+    private Map<String, String> getThreadContextHeaders() {
+        return threadPool.getThreadContext().getHeaders();
+    }
+    
+    private boolean checkFilter(final Category category, final String action, final String effectiveUser, TransportRequest request) {
+        
+        //skip cluster:monitor, index:monitor, internal:*
+        //check transport audit enabled
+        //check category enabled
+        //check action
+        //check ignoreAuditUsers
+        
+        return true;
+    }
+    
+    private boolean checkFilter(final Category category, final String effectiveUser, RestRequest request) {
+        //check rest audit enabled
+        //check category enabled
+        //check action
+        //check ignoreAuditUsers
+        return true;
+    }
 
-    protected boolean checkActionAndCategory(String action, final AuditMessage msg) {
+    /*private boolean checkActionAndCategory0(final String action, final String effectiveUser, String requestType, final AuditMessage msg) {
+        
+        //filter upfront
         
         if(action != null 
                 && 
                 ( action.startsWith("internal:")
-                  || action.contains("]") //shard level actions
+                  //|| action.contains("]") //shard level actions
                   || action.startsWith("cluster:monitor")
                   || action.startsWith("indices:monitor")
                 )
@@ -284,6 +345,15 @@ public abstract class AbstractAuditLog implements AuditLog {
             return false;
         }
         
+        if (ignoreAuditRequests.length > 0 && WildcardMatcher.matchAny(ignoreAuditRequests, msg.getRequestType())) {
+            
+            if(log.isTraceEnabled()) {
+                log.trace("Skipped audit log message {} because request {} is ignored", msg.toPrettyString(), msg.getRequestType());
+            }
+            
+            return false;
+        }
+        
         if (msg.getCategory().isEnabled()) {
         	return true;      	
         } else {
@@ -293,26 +363,7 @@ public abstract class AbstractAuditLog implements AuditLog {
         }
         
         return false;
-    }
-    
-    protected void checkAndSave(TransportRequest request, String action, final AuditMessage msg) {
-        if (checkActionAndCategory(action, msg)) {
-            save(msg);          
-        } 
-    }
-    
-    protected void checkAndSave(RestRequest request, String action, final AuditMessage msg) {
-        if (checkActionAndCategory(action, msg)) {
-            save(msg);          
-        } 
-    }
-
-    protected String getExpandedIndexName(DateTimeFormatter indexPattern, String index) {
-        if(indexPattern == null) {
-            return index;
-        }
-        return indexPattern.print(DateTime.now(DateTimeZone.UTC));
-    }
+    }*/
     
     protected abstract void save(final AuditMessage msg);
 }

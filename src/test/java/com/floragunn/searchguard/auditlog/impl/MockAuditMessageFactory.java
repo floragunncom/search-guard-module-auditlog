@@ -14,9 +14,15 @@
 
 package com.floragunn.searchguard.auditlog.impl;
 
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
+import org.elasticsearch.cluster.node.DiscoveryNode;
+import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.rest.RestRequest;
+import org.junit.Before;
 
 import com.floragunn.searchguard.auditlog.MockRestRequest;
 import com.floragunn.searchguard.auditlog.impl.AuditMessage.Category;
@@ -27,6 +33,15 @@ import com.floragunn.searchguard.user.User;
 public class MockAuditMessageFactory {
 	
 	public static AuditMessage validAuditMessage() {
+  
+	    ClusterService cs = mock(ClusterService.class);
+	    DiscoveryNode dn = mock(DiscoveryNode.class); 
+
+        when(dn.getHostAddress()).thenReturn("hostaddress");
+        when(dn.getId()).thenReturn("hostaddress");
+        when(dn.getHostName()).thenReturn("hostaddress");
+        when(cs.localNode()).thenReturn(dn);
+	   	    
 	    RestRequest holder = createValidRestRequest();
 		Category category = Category.FAILED_LOGIN;
 		String reason = "Forbidden";
@@ -38,7 +53,7 @@ public class MockAuditMessageFactory {
 		tc.putTransient(ConfigConstants.SG_REMOTE_ADDRESS, "8.8.8.8");
 		tc.putTransient(ConfigConstants.SG_SSL_TRANSPORT_PRINCIPAL, "CN=kirk,OU=client,O=client,L=test,C=DE");
 		
-		AuditMessage msg = new AuditMessage(category, null, Origin.TRANSPORT);
+		AuditMessage msg = new AuditMessage(category, cs, Origin.TRANSPORT);
 		return msg;
 	}
 

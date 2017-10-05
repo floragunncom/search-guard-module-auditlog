@@ -37,7 +37,7 @@ public final class AuditLogImpl extends AbstractAuditLog {
     
     private boolean useExecutorService = true;
     
-    AbstractAuditLog delegate;
+    AuditLogSink delegate;
     
     private static void printLicenseInfo() {
         final StringBuilder sb = new StringBuilder();
@@ -82,7 +82,7 @@ public final class AuditLogImpl extends AbstractAuditLog {
         } else {
         	this.pool = Executors.newFixedThreadPool(threadPoolSize);	
         }        
-        String index = settings.get("searchguard.audit.config.index","auditlog");
+        String index = settings.get("searchguard.audit.config.index","auditlog6");
         String doctype = settings.get("searchguard.audit.config.type","auditlog");
         
 		if (type != null) {
@@ -110,18 +110,18 @@ public final class AuditLogImpl extends AbstractAuditLog {
                 try {
                     Class<?> delegateClass = Class.forName(type);
 
-                    if (AbstractAuditLog.class.isAssignableFrom(delegateClass)) {
+                    if (AuditLogSink.class.isAssignableFrom(delegateClass)) {
                         try {
-                            delegate = (AbstractAuditLog) delegateClass.getConstructor(Settings.class, ThreadPool.class).newInstance(settings, threadPool);
+                            delegate = (AuditLogSink) delegateClass.getConstructor(Settings.class, ThreadPool.class).newInstance(settings, threadPool);
                         } catch (Throwable e) {
-                            delegate = (AbstractAuditLog) delegateClass.getConstructor(Settings.class, Path.class, ThreadPool.class, IndexNameExpressionResolver.class, ClusterService.class)
+                            delegate = (AuditLogSink) delegateClass.getConstructor(Settings.class, Path.class, ThreadPool.class, IndexNameExpressionResolver.class, ClusterService.class)
                                     .newInstance(settings, configPath, threadPool, resolver, clusterService);
                         }
                     } else {
-                        log.error("Audit logging unavailable: '{}' is not a subclass of {}", type, AbstractAuditLog.class.getSimpleName());
+                        log.error("Audit logging unavailable: '{}' is not a subclass of {}", type, AuditLogSink.class.getSimpleName());
                     }
                 } catch (Throwable e) { //we need really catch a Throwable here!
-                    log.error("Audit logging unavailable: Cannot instantiate object of class {} due to {}", e, type, e.toString());
+                    log.error("Audit logging unavailable: Cannot instantiate object of class {} due to "+e, type);
                 }
 			}
 		}
@@ -196,12 +196,16 @@ public final class AuditLogImpl extends AbstractAuditLog {
     protected void save(final AuditMessage msg) {
     	// only save if we have a valid delegate
         if(delegate != null) {
-        	// if the configured thread pool is 
-        	if(useExecutorService) {
-            	saveAsync(msg);          		
-        	} else {
-        		delegate.save(msg);
-        	}
+            if(delegate.isAsyncSupported()) {
+                delegate.storeAsync(msg);
+            } else {
+             // if the configured thread pool is 
+                if(useExecutorService) {
+                    saveAsync(msg);                 
+                } else {
+                    delegate.store(msg);
+                }
+            }
         }
     }
     
@@ -210,7 +214,7 @@ public final class AuditLogImpl extends AbstractAuditLog {
         	pool.submit(new Runnable() {				
     			@Override
     			public void run() {
-    				delegate.save(msg);
+    				delegate.store(msg);
     			}
     		});                    		    		
     	} catch(Exception ex) {

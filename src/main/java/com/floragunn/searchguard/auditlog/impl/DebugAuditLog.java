@@ -22,7 +22,7 @@ import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.threadpool.ThreadPool;
 
-public class DebugAuditLog extends AbstractAuditLog {
+public final class DebugAuditLog extends AuditLogSink {
 
     public DebugAuditLog(final Settings settings, final Path configPath, ThreadPool threadPool,
             final IndexNameExpressionResolver resolver, final ClusterService clusterService) {
@@ -35,7 +35,7 @@ public class DebugAuditLog extends AbstractAuditLog {
     }
 
     @Override
-    protected void save(final AuditMessage msg) {
+    public void store(final AuditMessage msg) {
         System.out.println("AUDIT_LOG: " + msg.toPrettyString());
     }
 

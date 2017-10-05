@@ -25,9 +25,10 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.threadpool.ThreadPool;
 
 import com.floragunn.searchguard.auditlog.impl.AbstractAuditLog;
+import com.floragunn.searchguard.auditlog.impl.AuditLogSink;
 import com.floragunn.searchguard.auditlog.impl.AuditMessage;
 
-public class TestAuditlogImpl extends AbstractAuditLog {
+public class TestAuditlogImpl extends AuditLogSink {
 
     public static List<AuditMessage> messages = new ArrayList<AuditMessage>(100);
     public static StringBuffer sb = new StringBuffer();
@@ -43,7 +44,7 @@ public class TestAuditlogImpl extends AbstractAuditLog {
     }
 
     @Override
-    protected synchronized void save(AuditMessage msg) {
+    public synchronized void store(AuditMessage msg) {
         sb.append(msg.toPrettyString()+System.lineSeparator());
         messages.add(msg);
     }

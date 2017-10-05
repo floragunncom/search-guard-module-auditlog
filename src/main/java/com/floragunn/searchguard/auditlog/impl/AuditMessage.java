@@ -17,6 +17,7 @@ package com.floragunn.searchguard.auditlog.impl;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
@@ -57,19 +58,24 @@ public final class AuditMessage {
     public static final String REST_REQUEST_PATH = "audit_rest_request_path";
     public static final String REST_REQUEST_BODY = "audit_rest_request_body";
     public static final String REST_REQUEST_PARAMS = "audit_rest_request_params";
+    public static final String REST_REQUEST_HEADERS = "audit_rest_request_headers";
     
     public static final String REQUEST_TYPE = "audit_transport_request_type";
     public static final String ACTION = "audit_transport_action";
+    public static final String TRANSPORT_REQUEST_HEADERS = "audit_transport_headers";
     
-    public static final String ID = "audit_trace_id";
-    public static final String TYPES = "audit_trace_types";
-    public static final String SOURCE = "audit_trace_source";
+    public static final String ID = "audit_trace_doc_id";
+    public static final String TYPES = "audit_trace_doc_types";
+    public static final String SOURCE = "audit_trace_doc_source";
     public static final String INDICES = "audit_trace_indices";
     public static final String RESOLVED_INDICES = "audit_trace_resolved_indices";
     
     public static final String EXCEPTION = "audit_request_exception_stacktrace";
     public static final String IS_ADMIN_DN = "audit_request_effective_user_is_admin";
     public static final String PRIVILEGE = "audit_request_privilege";
+    
+    public static final String TASK_ID = "audit_trace_task_id";
+    public static final String TASK_PARENT_ID = "audit_trace_task_parent_id";
 
     private static final DateTimeFormatter DEFAULT_FORMAT = DateTimeFormat.forPattern("yyyy-MM-dd'T'HH:mm:ss.SSSZZ");
     private final Map<String, Object> auditInfo = new HashMap<String, Object>(50);
@@ -189,8 +195,34 @@ public final class AuditMessage {
             auditInfo.put(RESOLVED_INDICES, resolvedIndices);
         }
     }
-
-    // auditInfo.put(REST_REQUEST_PARAMS, stringOrNull(user));
+    
+    public void addTaskId(long id) {
+         auditInfo.put(TASK_ID, id);
+    }
+    
+    public void addTaskParentId(String id) {
+        if(id != null) {
+            auditInfo.put(TASK_PARENT_ID, id);
+        }
+    }
+    
+    public void addRestParams(Map<String,String> params) {
+        if(params != null && !params.isEmpty()) {
+            auditInfo.put(REST_REQUEST_PARAMS, params);
+        }
+    }
+    
+    public void addRestHeaders(Map<String,List<String>> headers) {
+        if(headers != null && !headers.isEmpty()) {
+             auditInfo.put(REST_REQUEST_HEADERS, headers);
+        }
+    }
+    
+    public void addTransportHeaders(Map<String,String> headers) {
+        if(headers != null && !headers.isEmpty()) {
+            auditInfo.put(TRANSPORT_REQUEST_HEADERS, headers);
+        }
+    }
 
     public Map<String, Object> getAsMap() {
       return Collections.unmodifiableMap(this.auditInfo);
@@ -202,6 +234,10 @@ public final class AuditMessage {
     
     public String getEffectiveUser() {
         return (String) this.auditInfo.get(REQUEST_EFFECTIVE_USER);
+    }
+
+    public String getRequestType() {
+        return (String) this.auditInfo.get(REQUEST_TYPE);
     }
 
 	public Category getCategory() {
@@ -264,7 +300,7 @@ public final class AuditMessage {
         AUTHENTICATED;
 
         private boolean enabled = true;
-
+        
         public boolean isEnabled() {
             return enabled;
         }

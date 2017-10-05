@@ -30,7 +30,7 @@ import com.floragunn.searchguard.httpclient.HttpClient;
 import com.floragunn.searchguard.httpclient.HttpClient.HttpClientBuilder;
 import com.floragunn.searchguard.ssl.util.SSLConfigConstants;
 
-public final class HttpESAuditLog extends AbstractAuditLog {
+public final class HttpESAuditLog extends AuditLogSink {
 
 	// config in elasticsearch.yml
 	private final String index;
@@ -93,7 +93,7 @@ public final class HttpESAuditLog extends AbstractAuditLog {
 	}
 
 	@Override
-	protected void save(final AuditMessage msg) {
+	public void store(final AuditMessage msg) {
 		try {
 			boolean successful = client.index(msg.toString(), getExpandedIndexName(indexPattern, index), type, true);
 

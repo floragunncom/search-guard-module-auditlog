@@ -22,7 +22,7 @@ import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.threadpool.ThreadPool;
 
-public class MyOwnAuditLog extends AbstractAuditLog {
+public class MyOwnAuditLog extends AuditLogSink {
 
 	public MyOwnAuditLog(Settings settings, final Path configPath, ThreadPool threadPool,
 	        final IndexNameExpressionResolver resolver, final ClusterService clusterService) {
@@ -35,7 +35,7 @@ public class MyOwnAuditLog extends AbstractAuditLog {
 	}
 
 	@Override
-	protected void save(AuditMessage msg) {
+	public void store(AuditMessage msg) {
 	}
 
 }

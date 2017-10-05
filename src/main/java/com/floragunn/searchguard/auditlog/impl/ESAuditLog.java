@@ -27,16 +27,14 @@ import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.util.concurrent.ThreadContext.StoredContext;
-import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.threadpool.ThreadPool;
-import org.elasticsearch.transport.TransportRequest;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.support.HeaderHelper;
 
-public final class ESAuditLog extends AbstractAuditLog {
+public final class ESAuditLog extends AuditLogSink {
 
     private final Client clientProvider;
     private final String index;
@@ -61,9 +59,26 @@ public final class ESAuditLog extends AbstractAuditLog {
     public void close() throws IOException {
 
     }
+    
+    @Override
+    public boolean isAsyncSupported() {
+        return true;
+    }
 
     @Override
-    protected void save(final AuditMessage msg) {
+    public void store(final AuditMessage msg) {
+        storeAsync(msg);
+    }
+    
+    @Override
+    public void storeAsync(final AuditMessage msg) {
+        
+        if (Boolean.parseBoolean((String) HeaderHelper.getSafeFromHeader(threadPool.getThreadContext(), ConfigConstants.SG_CONF_REQUEST_HEADER))) {
+            if(log.isTraceEnabled()) {
+                log.trace("audit log of audit log will not be executed");
+            }
+            return;
+        }
 
         try(StoredContext ctx = threadPool.getThreadContext().stashContext()) {
             try {
@@ -81,37 +96,12 @@ public final class ESAuditLog extends AbstractAuditLog {
     
                     @Override
                     public void onFailure(final Exception e) {
-                        log.error("Unable to write audit log {} due to {}", e, msg, e.toString());
+                        log.error("Unable to write audit log {} due to {}", msg, e);
                     }
                 });
             } catch (final Exception e) {
-                log.error("Unable to write audit log {} due to {}", e, msg, e.toString());
+                log.error("Unable to index audit log {} due to {}", msg, e);
             }
         }
-    }
-
-    @Override
-    protected void checkAndSave(final TransportRequest request, String action, final AuditMessage msg) {
-        if (Boolean.parseBoolean((String) HeaderHelper.getSafeFromHeader(threadPool.getThreadContext(), ConfigConstants.SG_CONF_REQUEST_HEADER))) {
-            if(log.isTraceEnabled()) {
-                log.trace("audit log of audit log will not be executed");
-            }
-            
-            return;
-        }
-        super.checkAndSave(request, action, msg); 
-    }
-    
-    @Override
-    protected void checkAndSave(final RestRequest request, String action, final AuditMessage msg) {
-        if (Boolean.parseBoolean((String) HeaderHelper.getSafeFromHeader(threadPool.getThreadContext(), ConfigConstants.SG_CONF_REQUEST_HEADER))) {
-            if(log.isTraceEnabled()) {
-                log.trace("audit log of audit log will not be executed");
-            }
-            
-            
-            return;
-        }
-        super.checkAndSave(request, action, msg);     
     }
 }

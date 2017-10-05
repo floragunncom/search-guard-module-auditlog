@@ -25,18 +25,16 @@ import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.threadpool.ThreadPool;
 
-public class Log4JAuditLog extends AbstractAuditLog {
+public final class Log4JAuditLog extends AuditLogSink {
 
     private final Logger auditLogger;
     private final Level logLevel;
-    //private final String format;
-    
+
     public Log4JAuditLog(final Settings settings, final Path configPath, ThreadPool threadPool,
             final IndexNameExpressionResolver resolver, final ClusterService clusterService) {
         super(settings, threadPool, resolver, clusterService);
         auditLogger = LogManager.getLogger(settings.get("searchguard.audit.config.log4j.logger_name","sgaudit"));
         logLevel = Level.toLevel(settings.get("searchguard.audit.config.log4j.level","INFO").toUpperCase());
-        //format = settings.get("searchguard.audit.config.log4j.format","JSON");
     }
 
     @Override
@@ -45,8 +43,8 @@ public class Log4JAuditLog extends AbstractAuditLog {
     }
 
     @Override
-    protected void save(final AuditMessage msg) {
-        auditLogger.log(logLevel, msg.toJson());
+    public void store(final AuditMessage msg) {
+        auditLogger.log(logLevel, msg.toPrettyString());
     }
 
 }

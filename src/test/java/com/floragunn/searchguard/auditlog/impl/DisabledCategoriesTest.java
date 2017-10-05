@@ -15,6 +15,8 @@
 package com.floragunn.searchguard.auditlog.impl;
 
 import static org.hamcrest.CoreMatchers.containsString;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import java.io.FileDescriptor;
 import java.io.FileOutputStream;
@@ -24,11 +26,14 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
+import org.elasticsearch.cluster.node.DiscoveryNode;
+import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.settings.Settings.Builder;
 import org.elasticsearch.transport.TransportRequest;
 import org.junit.After;
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -40,6 +45,17 @@ import com.floragunn.searchguard.test.AbstractSGUnitTest;
 import com.google.common.base.Joiner;
 
 public class DisabledCategoriesTest {
+    
+    ClusterService cs = mock(ClusterService.class);
+    DiscoveryNode dn = mock(DiscoveryNode.class);
+    
+    @Before
+    public void setup() {
+        when(dn.getHostAddress()).thenReturn("hostaddress");
+        when(dn.getId()).thenReturn("hostaddress");
+        when(dn.getHostName()).thenReturn("hostaddress");
+        when(cs.localNode()).thenReturn(dn);
+    }
 
 	@Rule
 	public CaptureSystemOut capture = new CaptureSystemOut();
@@ -52,7 +68,7 @@ public class DisabledCategoriesTest {
 		Builder settingsBuilder = Settings.builder();
 		settingsBuilder.put("searchguard.audit.type", "debug");
 		settingsBuilder.put("searchguard.audit.config.disabled_categories", "nonexistant");
-		AuditLogImpl auditLog = new AuditLogImpl(settingsBuilder.build(), null, null, AbstractSGUnitTest.MOCK_POOL, null, null);
+		AuditLogImpl auditLog = new AuditLogImpl(settingsBuilder.build(), null, null, AbstractSGUnitTest.MOCK_POOL, null, cs);
 		logAll(auditLog);
 		
 		auditLog.pool.shutdown();
@@ -68,7 +84,7 @@ public class DisabledCategoriesTest {
 		Builder settingsBuilder  = Settings.builder();
 		settingsBuilder.put("searchguard.audit.type", "debug");
 		settingsBuilder.put("searchguard.audit.config.disabled_categories", "nonexistant, bad_headers");
-		AuditLog auditLog = new AuditLogImpl(settingsBuilder.build(), null, null, AbstractSGUnitTest.MOCK_POOL, null, null);
+		AuditLog auditLog = new AuditLogImpl(settingsBuilder.build(), null, null, AbstractSGUnitTest.MOCK_POOL, null, cs);
 		logAll(auditLog);
 		String result = capture.getResult();
 		Assert.assertFalse(categoriesPresentInLog(result, Category.BAD_HEADERS));		
@@ -82,7 +98,7 @@ public class DisabledCategoriesTest {
 		
 		// we use the debug output, no ES client is needed. Also, we 
 		// do not need to close.
-		AuditLogImpl auditLog = new AuditLogImpl(settingsBuilder.build(), null, null, AbstractSGUnitTest.MOCK_POOL, null, null);
+		AuditLogImpl auditLog = new AuditLogImpl(settingsBuilder.build(), null, null, AbstractSGUnitTest.MOCK_POOL, null, cs);
 		
 		logAll(auditLog);
 		
@@ -143,7 +159,7 @@ public class DisabledCategoriesTest {
 	
 		// we use the debug output, no ES client is needed. Also, we 
 		// do not need to close.		
-		AuditLog auditLog = new AuditLogImpl(settingsBuilder.build(), null, null, AbstractSGUnitTest.MOCK_POOL, null, null);
+		AuditLog auditLog = new AuditLogImpl(settingsBuilder.build(), null, null, AbstractSGUnitTest.MOCK_POOL, null, cs);
 		
 		logAll(auditLog);
 		
@@ -188,15 +204,15 @@ public class DisabledCategoriesTest {
     }
 
     protected void logTransportFailedLogin(AuditLog auditLog) {
-    	auditLog.logFailedLogin("testuser.transport.failedlogin", false, "testuser.transport.failedlogin", new TransportRequest.Empty());
+    	auditLog.logFailedLogin("testuser.transport.failedlogin", false, "testuser.transport.failedlogin", new TransportRequest.Empty(), null);
     }
 
     protected void logMissingPrivileges(AuditLog auditLog) {
-    	auditLog.logMissingPrivileges("privilege.missing", new TransportRequest.Empty());
+    	auditLog.logMissingPrivileges("privilege.missing", new TransportRequest.Empty(), null);
     }
 
     protected void logTransportBadHeaders(AuditLog auditLog) {
-    	auditLog.logBadHeaders(new TransportRequest.Empty(),"action");
+    	auditLog.logBadHeaders(new TransportRequest.Empty(),"action", null);
     }
 
     protected void logRestBadHeaders(AuditLog auditLog) {
@@ -204,7 +220,7 @@ public class DisabledCategoriesTest {
     }
 
     protected void logSgIndexAttempt(AuditLog auditLog) {
-    	auditLog.logSgIndexAttempt(new TransportRequest.Empty(), "action.indexattempt");
+    	auditLog.logSgIndexAttempt(new TransportRequest.Empty(), "action.indexattempt", null);
     }
 
     protected void logRestSSLException(AuditLog auditLog) {
@@ -212,11 +228,11 @@ public class DisabledCategoriesTest {
     }
 
     protected void logTransportSSLException(AuditLog auditLog) {
-    	auditLog.logSSLException(new TransportRequest.Empty(), new Exception(), "action.transport.ssl");
+    	auditLog.logSSLException(new TransportRequest.Empty(), new Exception(), "action.transport.ssl", null);
     }
        
     protected void logAuthenticatedRequest(AuditLog auditLog) {
-    	auditLog.logGrantedPrivileges("action.success", new TransportRequest.Empty());
+    	auditLog.logGrantedPrivileges("action.success", new TransportRequest.Empty(), null);
     }
 
 }

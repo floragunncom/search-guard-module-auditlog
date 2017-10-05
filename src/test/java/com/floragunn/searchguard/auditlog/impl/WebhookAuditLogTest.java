@@ -14,6 +14,9 @@
 
 package com.floragunn.searchguard.auditlog.impl;
 
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -30,8 +33,11 @@ import javax.net.ssl.TrustManagerFactory;
 import org.apache.http.entity.ContentType;
 import org.apache.http.impl.bootstrap.HttpServer;
 import org.apache.http.impl.bootstrap.ServerBootstrap;
+import org.elasticsearch.cluster.node.DiscoveryNode;
+import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.settings.Settings;
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.Test;
 
 import com.floragunn.searchguard.auditlog.impl.AuditMessage.Category;
@@ -47,7 +53,7 @@ public class WebhookAuditLogTest {
 		// provide no settings, audit log not available
 		Settings settings = Settings.builder().build();
 		MockWebhookAuditLog auditlog = new MockWebhookAuditLog(settings);
-		auditlog.save(msg);
+		auditlog.store(msg);
 		Assert.assertEquals(null, auditlog.webhookFormat);
 
 	}
@@ -64,7 +70,7 @@ public class WebhookAuditLogTest {
 				.put("searchguard.audit.config.webhook.url", url)
 				.build();
 		MockWebhookAuditLog auditlog = new MockWebhookAuditLog(settings);
-		auditlog.save(msg);
+		auditlog.store(msg);
 		Assert.assertEquals(WebhookFormat.TEXT, auditlog.webhookFormat);
 		Assert.assertEquals(ContentType.TEXT_PLAIN, auditlog.webhookFormat.getContentType());
 		Assert.assertTrue(auditlog.payload, !auditlog.payload.startsWith("{\"text\":"));
@@ -75,7 +81,7 @@ public class WebhookAuditLogTest {
 				.put("searchguard.audit.config.webhook.format", "idonotexist")
 				.build();
 		auditlog = new MockWebhookAuditLog(settings);
-		auditlog.save(msg);
+		auditlog.store(msg);
 		Assert.assertEquals(WebhookFormat.TEXT, auditlog.webhookFormat);
 		Assert.assertEquals(ContentType.TEXT_PLAIN, auditlog.webhookFormat.getContentType());
 		Assert.assertTrue(auditlog.payload, !auditlog.payload.startsWith("{\"text\":"));
@@ -87,7 +93,7 @@ public class WebhookAuditLogTest {
 				.put("searchguard.audit.config.webhook.format", "text")
 				.build();
 		auditlog = new MockWebhookAuditLog(settings);
-		auditlog.save(msg);
+		auditlog.store(msg);
 		Assert.assertEquals(WebhookFormat.TEXT, auditlog.webhookFormat);
 		Assert.assertEquals(ContentType.TEXT_PLAIN, auditlog.webhookFormat.getContentType());
 		Assert.assertTrue(auditlog.payload, !auditlog.payload.startsWith("{\"text\":"));
@@ -100,7 +106,7 @@ public class WebhookAuditLogTest {
 				.put("searchguard.audit.config.webhook.format", "json")
 				.build();
 		auditlog = new MockWebhookAuditLog(settings);
-		auditlog.save(msg);
+		auditlog.store(msg);
 		System.out.println(auditlog.payload);
 		Assert.assertEquals(WebhookFormat.JSON, auditlog.webhookFormat);
 		Assert.assertEquals(ContentType.APPLICATION_JSON, auditlog.webhookFormat.getContentType());
@@ -114,7 +120,7 @@ public class WebhookAuditLogTest {
 				.put("searchguard.audit.config.webhook.format", "slack")
 				.build();
 		auditlog = new MockWebhookAuditLog(settings);
-		auditlog.save(msg);
+		auditlog.store(msg);
 		Assert.assertEquals(WebhookFormat.SLACK, auditlog.webhookFormat);
 		Assert.assertEquals(ContentType.APPLICATION_JSON, auditlog.webhookFormat.getContentType());
 		Assert.assertTrue(auditlog.payload, auditlog.payload.startsWith("{\"text\":"));
@@ -135,7 +141,7 @@ public class WebhookAuditLogTest {
 
 		MockWebhookAuditLog auditlog = new MockWebhookAuditLog(settings);
 		AuditMessage msg = MockAuditMessageFactory.validAuditMessage();
-		auditlog.save(msg);
+		auditlog.store(msg);
 		Assert.assertEquals(null, auditlog.url);
 		Assert.assertEquals(null, auditlog.payload);
 		Assert.assertEquals(null, auditlog.webhookUrl);
@@ -153,7 +159,7 @@ public class WebhookAuditLogTest {
 		// just make sure no exception is thrown
 		WebhookAuditLog auditlog = new WebhookAuditLog(settings, null, null, null, null);
 		AuditMessage msg = MockAuditMessageFactory.validAuditMessage();
-		auditlog.save(msg);
+		auditlog.store(msg);
 	}
 
 	@Test
@@ -178,7 +184,7 @@ public class WebhookAuditLogTest {
 
 		WebhookAuditLog auditlog = new WebhookAuditLog(settings, null, null, null, null);
 		AuditMessage msg = MockAuditMessageFactory.validAuditMessage();
-		auditlog.save(msg);
+		auditlog.store(msg);
 		Assert.assertTrue(handler.method.equals("POST"));
 		Assert.assertTrue(handler.body != null);
 		Assert.assertTrue(handler.body.startsWith("{\"text\":"));
@@ -191,7 +197,7 @@ public class WebhookAuditLogTest {
 				.build();
 
 		auditlog = new WebhookAuditLog(settings, null, null, null, null);
-		auditlog.save(msg);
+		auditlog.store(msg);
 		Assert.assertTrue(handler.method.equals("POST"));
 		Assert.assertTrue(handler.body != null);
 		System.out.println(handler.body);
@@ -205,7 +211,7 @@ public class WebhookAuditLogTest {
 				.build();
 
 		auditlog = new WebhookAuditLog(settings, null, null, null, null);
-		auditlog.save(msg);
+		auditlog.store(msg);
 		Assert.assertTrue(handler.method.equals("POST"));
 		Assert.assertTrue(handler.body != null);
 		Assert.assertTrue(handler.body.contains("{"));
@@ -218,7 +224,7 @@ public class WebhookAuditLogTest {
 				.build();
 
 		auditlog = new WebhookAuditLog(settings, null, null, null, null);
-		auditlog.save(msg);
+		auditlog.store(msg);
 		Assert.assertTrue(handler.method.equals("POST"));
 		Assert.assertTrue(handler.body.equals(""));
 		Assert.assertTrue(!handler.body.contains("{"));
@@ -231,7 +237,7 @@ public class WebhookAuditLogTest {
 				.build();
 
 		auditlog = new WebhookAuditLog(settings, null, null, null, null);
-		auditlog.save(msg);
+		auditlog.store(msg);
 		Assert.assertTrue(handler.method.equals("GET"));
 		Assert.assertTrue(handler.body.equals(""));
 		Assert.assertTrue(!handler.body.contains("{"));
@@ -261,7 +267,7 @@ public class WebhookAuditLogTest {
 
 		WebhookAuditLog auditlog = new WebhookAuditLog(settings, null, null, null, null);
 		AuditMessage msg = MockAuditMessageFactory.validAuditMessage();
-		auditlog.save(msg);
+		auditlog.store(msg);
 		Assert.assertTrue(handler.method == null);
 		Assert.assertTrue(handler.body == null);
 		Assert.assertTrue(handler.uri == null);
@@ -292,7 +298,7 @@ public class WebhookAuditLogTest {
 
 		WebhookAuditLog auditlog = new WebhookAuditLog(settings, null, null, null, null);
 		AuditMessage msg = MockAuditMessageFactory.validAuditMessage();
-		auditlog.save(msg);
+		auditlog.store(msg);
 		Assert.assertTrue(handler.method == null);
 		Assert.assertTrue(handler.body == null);
 		Assert.assertTrue(handler.uri == null);
@@ -318,7 +324,7 @@ public class WebhookAuditLogTest {
 				.put("searchguard.audit.config.webhook.ssl.verify", false)
 				.build();
 		auditlog = new WebhookAuditLog(settings, null, null, null, null);
-		auditlog.save(msg);
+		auditlog.store(msg);
 		Assert.assertTrue(handler.method.equals("POST"));
 		Assert.assertTrue(handler.body != null);
 		Assert.assertTrue(handler.body.contains("{"));
