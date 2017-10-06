@@ -61,17 +61,7 @@ public final class ESAuditLog extends AuditLogSink {
     }
     
     @Override
-    public boolean isAsyncSupported() {
-        return true;
-    }
-
-    @Override
     public void store(final AuditMessage msg) {
-        storeAsync(msg);
-    }
-    
-    @Override
-    public void storeAsync(final AuditMessage msg) {
         
         if (Boolean.parseBoolean((String) HeaderHelper.getSafeFromHeader(threadPool.getThreadContext(), ConfigConstants.SG_CONF_REQUEST_HEADER))) {
             if(log.isTraceEnabled()) {
@@ -85,7 +75,8 @@ public final class ESAuditLog extends AuditLogSink {
                 final IndexRequestBuilder irb = clientProvider.prepareIndex(getExpandedIndexName(indexPattern, index), type).setRefreshPolicy(RefreshPolicy.IMMEDIATE).setSource(msg.getAsMap());
                 threadPool.getThreadContext().putHeader(ConfigConstants.SG_CONF_REQUEST_HEADER, "true");
                 irb.setTimeout(TimeValue.timeValueMinutes(1));
-                irb.execute(new ActionListener<IndexResponse>() {
+                IndexResponse res = irb.execute().actionGet();
+                /*irb.execute(new ActionListener<IndexResponse>() {
     
                     @Override
                     public void onResponse(final IndexResponse response) {
@@ -98,7 +89,7 @@ public final class ESAuditLog extends AuditLogSink {
                     public void onFailure(final Exception e) {
                         log.error("Unable to write audit log {} due to {}", msg, e);
                     }
-                });
+                });*/
             } catch (final Exception e) {
                 log.error("Unable to index audit log {} due to {}", msg, e);
             }

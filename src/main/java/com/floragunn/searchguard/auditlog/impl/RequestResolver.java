@@ -164,7 +164,15 @@ public final class RequestResolver {
         }
         
         if(request instanceof BulkShardRequest) {
-            return Collections.EMPTY_LIST;
+            
+            if(category != Category.FAILED_LOGIN 
+                    && category != Category.MISSING_PRIVILEGES 
+                    && category != Category.SG_INDEX_ATTEMPT) {
+                
+                return Collections.EMPTY_LIST;
+            }
+            
+            
         }
         
         return Collections.singletonList(resolveInner(

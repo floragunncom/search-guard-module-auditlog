@@ -19,7 +19,8 @@ import java.nio.file.Path;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.logging.log4j.LogManager;
@@ -30,12 +31,15 @@ import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.threadpool.ThreadPool;
 
+import com.floragunn.searchguard.support.ConfigConstants;
+
 public final class AuditLogImpl extends AbstractAuditLog {
+    
+    private final static int DEFAULT_THREAD_POOL_SIZE = 10;
+    private final static int DEFAULT_THREAD_POOL_MAX_QUEUE_LEN = 100 * 1000;
     
 	// package private for unit tests :(
     final ExecutorService pool;
-    
-    private boolean useExecutorService = true;
     
     AuditLogSink delegate;
     
@@ -68,22 +72,35 @@ public final class AuditLogImpl extends AbstractAuditLog {
     static {
         printLicenseInfo();
     }
+    
+    private ThreadPoolExecutor createExecutor(final int threadPoolSize, final int maxQueueLen) {
+        if(log.isDebugEnabled()) {
+            log.debug("Create new executor with threadPoolSize: {} and maxQueueLen: {}", threadPoolSize, maxQueueLen);
+        }
+        return new ThreadPoolExecutor(threadPoolSize, threadPoolSize,
+                0L, TimeUnit.MILLISECONDS,
+                new LinkedBlockingQueue<Runnable>(maxQueueLen));
+    }
 
     public AuditLogImpl(final Settings settings, final Path configPath, Client clientProvider, ThreadPool threadPool,
             final IndexNameExpressionResolver resolver, final ClusterService clusterService) {
     	super(settings, threadPool, resolver, clusterService);
-        String type = settings.get("searchguard.audit.type", null);
-        // thread pool size of 0 means we directly hand the message to the delegate,
-        // skipping the thread pool altogether
-        Integer threadPoolSize = settings.getAsInt("searchguard.audit.threadpool.size", 10);
+        final String type = settings.get(ConfigConstants.SEARCHGUARD_AUDIT_TYPE, null);
+        int threadPoolSize = settings.getAsInt(ConfigConstants.SEARCHGUARD_AUDIT_THREADPOOL_SIZE, DEFAULT_THREAD_POOL_SIZE).intValue();
+        int threadPoolMaxQueueLen = settings.getAsInt(ConfigConstants.SEARCHGUARD_AUDIT_THREADPOOL_MAX_QUEUE_LEN, DEFAULT_THREAD_POOL_MAX_QUEUE_LEN).intValue();
+        
         if (threadPoolSize <= 0) {
-        	this.useExecutorService = false;
-        	this.pool = null;
-        } else {
-        	this.pool = Executors.newFixedThreadPool(threadPoolSize);	
-        }        
-        String index = settings.get("searchguard.audit.config.index","auditlog6");
-        String doctype = settings.get("searchguard.audit.config.type","auditlog");
+            threadPoolSize = DEFAULT_THREAD_POOL_SIZE;
+        }
+        
+        if (threadPoolMaxQueueLen <= 0) {
+            threadPoolMaxQueueLen = DEFAULT_THREAD_POOL_MAX_QUEUE_LEN;
+        }
+
+        this.pool = createExecutor(threadPoolSize, threadPoolMaxQueueLen);
+      
+        final String index = settings.get(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_INDEX,"auditlog6");
+        final String doctype = settings.get(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_TYPE,"auditlog");
         
 		if (type != null) {
 			switch (type.toLowerCase()) {
@@ -195,32 +212,26 @@ public final class AuditLogImpl extends AbstractAuditLog {
     @Override
     protected void save(final AuditMessage msg) {
     	// only save if we have a valid delegate
+
         if(delegate != null) {
-            if(delegate.isAsyncSupported()) {
-                delegate.storeAsync(msg);
+            if(delegate.isHandlingBackpressure()) {
+                delegate.store(msg);
             } else {
-             // if the configured thread pool is 
-                if(useExecutorService) {
-                    saveAsync(msg);                 
-                } else {
-                    delegate.store(msg);
-                }
+                saveAsync(msg); 
             }
         }
     }
     
     protected void saveAsync(final AuditMessage msg) {
     	try {
-        	pool.submit(new Runnable() {				
-    			@Override
-    			public void run() {
-    				delegate.store(msg);
-    			}
-    		});                    		    		
+            pool.submit(new Runnable() { 
+                @Override
+                public void run() {
+                    delegate.store(msg);
+                }
+            });                                                      		    		
     	} catch(Exception ex) {
-            log.error("Could not submit audit message to thread pool for delegate '{}' due to '{}'", delegate.getClass().getSimpleName(), ex.getMessage());                   		
+            log.error("Could not submit audit message {} to thread pool for delegate '{}' due to '{}'", msg, delegate.getClass().getSimpleName(), ex.getMessage());                   		
     	}
     }
-
-
 }

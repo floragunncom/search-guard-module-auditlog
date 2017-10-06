@@ -29,9 +29,8 @@ public final class DebugAuditLog extends AuditLogSink {
         super(settings, threadPool, resolver, clusterService);
     }
 
-    @Override
-    public void close() throws IOException {
-
+    public boolean isHandlingBackpressure() {
+        return true;
     }
 
     @Override

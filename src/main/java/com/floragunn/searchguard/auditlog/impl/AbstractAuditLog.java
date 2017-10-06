@@ -46,6 +46,8 @@ public abstract class AbstractAuditLog implements AuditLog {
     protected final boolean resolveBulkRequests;
     private final String[] ignoreAuditUsers;
     private final String[] ignoreAuditRequests;
+    protected final boolean restAuditingEnabled;
+    protected final boolean transportAuditingEnabled;
 
     protected AbstractAuditLog(Settings settings, final ThreadPool threadPool, final IndexNameExpressionResolver resolver, final ClusterService clusterService) {
         super();
@@ -55,16 +57,19 @@ public abstract class AbstractAuditLog implements AuditLog {
         this.resolver = resolver;
         this.clusterService = clusterService;
         
-        final String[] disabledCategories = settings.getAsArray("searchguard.audit.config.disabled_categories", new String[]{});
-        withRequestDetails = settings.getAsBoolean("searchguard.audit.enable_request_details", false);
-        resolveBulkRequests = settings.getAsBoolean("searchguard.audit.resolve_bulk_requests", true);
+        final String[] disabledCategories = settings.getAsArray(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_CATEGORIES, new String[]{});
+        withRequestDetails = settings.getAsBoolean(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_REQUEST_DETAILS, false);
+        resolveBulkRequests = settings.getAsBoolean(ConfigConstants.SEARCHGUARD_AUDIT_RESOLVE_BULK_REQUESTS, false);
         
-        ignoreAuditUsers = settings.getAsArray("searchguard.audit.ignore_users", new String[]{});
+        restAuditingEnabled = settings.getAsBoolean(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_REST, true);
+        transportAuditingEnabled = settings.getAsBoolean(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_TRANSPORT, false);
+        
+        ignoreAuditUsers = settings.getAsArray(ConfigConstants.SEARCHGUARD_AUDIT_IGNORE_USERS, new String[]{});
         if (ignoreAuditUsers.length > 0) {
             log.info("Configured Users to ignore: {}", Arrays.toString(ignoreAuditUsers));
         }
         
-        ignoreAuditRequests = settings.getAsArray("searchguard.audit.ignore_requests", new String[]{});
+        ignoreAuditRequests = settings.getAsArray(ConfigConstants.SEARCHGUARD_AUDIT_IGNORE_REQUESTS, new String[]{});
         if (ignoreAuditUsers.length > 0) {
             log.info("Configured Requests to ignore: {}", Arrays.toString(ignoreAuditRequests));
         }
@@ -277,7 +282,7 @@ public abstract class AbstractAuditLog implements AuditLog {
     }
 
     private Origin getOrigin() {
-        final String origin = (String) threadPool.getThreadContext().getTransient("_sg_origin");
+        final String origin = (String) threadPool.getThreadContext().getTransient(ConfigConstants.SG_ORIGIN);
         return origin == null?null:Origin.valueOf(origin);
     }
     
@@ -296,74 +301,119 @@ public abstract class AbstractAuditLog implements AuditLog {
     
     private boolean checkFilter(final Category category, final String action, final String effectiveUser, TransportRequest request) {
         
+        if(!transportAuditingEnabled) {
+            //ignore for certain categories
+            if(category != Category.FAILED_LOGIN 
+                    && category != Category.MISSING_PRIVILEGES 
+                    && category != Category.SG_INDEX_ATTEMPT) {
+                
+                return false;
+            }
+            
+        }
+        
+        //skip internals
+        if(action != null 
+                && 
+                ( action.startsWith("internal:")
+                  || action.startsWith("cluster:monitor")
+                  || action.startsWith("indices:monitor")
+                )
+                ) {
+            
+        
+            //if(log.isTraceEnabled()) {
+            //    log.trace("Skipped audit log message due to category ({}) or action ({}) does not match", category, action);
+            //}
+        
+            return false;
+        }
+        
+        if (ignoreAuditUsers.length > 0 && WildcardMatcher.matchAny(ignoreAuditUsers, effectiveUser)) {
+            
+            if(log.isTraceEnabled()) {
+                log.trace("Skipped audit log message because of user {} is ignored", effectiveUser);
+            }
+            
+            return false;
+        }
+        
+        if (ignoreAuditRequests.length > 0 
+                && (WildcardMatcher.matchAny(ignoreAuditRequests, action) || WildcardMatcher.matchAny(ignoreAuditRequests, request.getClass().getSimpleName()))) {
+            
+            if(log.isTraceEnabled()) {
+                log.trace("Skipped audit log message because request {} is ignored", action+"#"+request.getClass().getSimpleName());
+            }
+            
+            return false;
+        }
+        
+        if (category.isEnabled()) {
+            return true;        
+        } else {
+            if(log.isTraceEnabled()) {
+                log.trace("Skipped audit log message because category {} not enabled", category);
+            }
+            return false;
+        }
+        
+        
         //skip cluster:monitor, index:monitor, internal:*
         //check transport audit enabled
         //check category enabled
         //check action
         //check ignoreAuditUsers
-        
-        return true;
+
     }
     
     private boolean checkFilter(final Category category, final String effectiveUser, RestRequest request) {
+        
+        
+        if(!restAuditingEnabled) {
+            //ignore for certain categories
+            if(category != Category.FAILED_LOGIN 
+                    && category != Category.MISSING_PRIVILEGES 
+                    && category != Category.SG_INDEX_ATTEMPT) {
+                
+                return false;
+            }
+            
+        }
+        
+        if (ignoreAuditUsers.length > 0 && WildcardMatcher.matchAny(ignoreAuditUsers, effectiveUser)) {
+            
+            if(log.isTraceEnabled()) {
+                log.trace("Skipped audit log message because of user {} is ignored", effectiveUser);
+            }
+            
+            return false;
+        }
+        
+        if (ignoreAuditRequests.length > 0 
+                && (WildcardMatcher.matchAny(ignoreAuditRequests, request.getClass().getSimpleName()))) {
+            
+            if(log.isTraceEnabled()) {
+                log.trace("Skipped audit log message because request {} is ignored", request.getClass().getSimpleName());
+            }
+            
+            return false;
+        }
+        
+        if (category.isEnabled()) {
+            return true;        
+        } else {
+            if(log.isTraceEnabled()) {
+                log.trace("Skipped audit log message because category {} not enabled", category);
+            }
+            return false;
+        }
+        
+        
         //check rest audit enabled
         //check category enabled
         //check action
         //check ignoreAuditUsers
-        return true;
     }
-
-    /*private boolean checkActionAndCategory0(final String action, final String effectiveUser, String requestType, final AuditMessage msg) {
-        
-        //filter upfront
-        
-        if(action != null 
-                && 
-                ( action.startsWith("internal:")
-                  //|| action.contains("]") //shard level actions
-                  || action.startsWith("cluster:monitor")
-                  || action.startsWith("indices:monitor")
-                )
-                && msg.getCategory() != Category.MISSING_PRIVILEGES
-                && msg.getCategory() != Category.FAILED_LOGIN
-                && msg.getCategory() != Category.SG_INDEX_ATTEMPT) {
-            
-        
-            if(log.isTraceEnabled()) {
-                log.trace("Skipped audit log message {}", msg.toPrettyString());
-            }
-        
-            return false;
-        }
-
-        if (ignoreAuditUsers.length > 0 && WildcardMatcher.matchAny(ignoreAuditUsers, msg.getEffectiveUser())) {
-            
-            if(log.isTraceEnabled()) {
-                log.trace("Skipped audit log message {} because user {} is ignored", msg.toPrettyString(), msg.getEffectiveUser());
-            }
-            
-            return false;
-        }
-        
-        if (ignoreAuditRequests.length > 0 && WildcardMatcher.matchAny(ignoreAuditRequests, msg.getRequestType())) {
-            
-            if(log.isTraceEnabled()) {
-                log.trace("Skipped audit log message {} because request {} is ignored", msg.toPrettyString(), msg.getRequestType());
-            }
-            
-            return false;
-        }
-        
-        if (msg.getCategory().isEnabled()) {
-        	return true;      	
-        } else {
-            if(log.isTraceEnabled()) {
-                log.trace(msg.getCategory()+ " not enabled");
-            }
-        }
-        
-        return false;
-    }*/
     
     protected abstract void save(final AuditMessage msg);
 }

@@ -27,14 +27,11 @@ public abstract class AuditLogSink {
         this.clusterService = clusterService;    
     }
     
-    public boolean isAsyncSupported() {
+    public boolean isHandlingBackpressure() {
         return false;
     }
+
     public abstract void store(AuditMessage msg);
-    
-    public void storeAsync(AuditMessage msg) {
-        throw new RuntimeException("storeAsync not supported");
-    }
     
     public void close() throws IOException {
 
