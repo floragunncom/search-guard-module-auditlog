@@ -112,6 +112,7 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
 
     public void testUnauthenticated() throws Exception {
      
+        System.out.println("#### testUnauthenticated");
         HttpResponse response = rh.executeGetRequest("_search");
         Assert.assertEquals(HttpStatus.SC_UNAUTHORIZED, response.getStatusCode());
         Assert.assertEquals(1, TestAuditlogImpl.messages.size());
