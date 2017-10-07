@@ -17,9 +17,12 @@ package com.floragunn.searchguard.auditlog.impl;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import java.net.InetSocketAddress;
+
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.rest.RestRequest;
 import org.junit.Before;
@@ -42,22 +45,24 @@ public class MockAuditMessageFactory {
         when(dn.getHostName()).thenReturn("hostaddress");
         when(cs.localNode()).thenReturn(dn);
 	   	    
-	    RestRequest holder = createValidRestRequest();
+	    //RestRequest holder = createValidRestRequest();
 		Category category = Category.FAILED_LOGIN;
-		String reason = "Forbidden";
-		String details = "Details";
+		TransportAddress ta = new TransportAddress(new InetSocketAddress("8.8.8.8",80));
 		
-		ThreadContext tc = new ThreadContext(Settings.EMPTY);
-		User user = new User("John Doe");
-		tc.putTransient(ConfigConstants.SG_USER, user);
-		tc.putTransient(ConfigConstants.SG_REMOTE_ADDRESS, "8.8.8.8");
-		tc.putTransient(ConfigConstants.SG_SSL_TRANSPORT_PRINCIPAL, "CN=kirk,OU=client,O=client,L=test,C=DE");
+		//ThreadContext tc = new ThreadContext(Settings.EMPTY);
+		//User user = new User("John Doe");
+		//tc.putTransient(ConfigConstants.SG_USER, user);
+		//tc.putTransient(ConfigConstants.SG_REMOTE_ADDRESS, "8.8.8.8");
+		//tc.putTransient(ConfigConstants.SG_SSL_TRANSPORT_PRINCIPAL, "CN=kirk,OU=client,O=client,L=test,C=DE");
 		
 		AuditMessage msg = new AuditMessage(category, cs, Origin.TRANSPORT);
+		msg.addEffectiveUser("John Doe");
+		msg.addRemoteAddress(ta);
+		msg.addRequestType("IndexRequest");
 		return msg;
 	}
 
-	private static RestRequest createValidRestRequest() {
-		return new MockRestRequest();
-	}
+	//private static RestRequest createValidRestRequest() {
+	//	return new MockRestRequest();
+	//}
 }

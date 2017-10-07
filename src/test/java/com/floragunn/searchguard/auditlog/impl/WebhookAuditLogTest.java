@@ -98,7 +98,7 @@ public class WebhookAuditLogTest {
 		Assert.assertEquals(ContentType.TEXT_PLAIN, auditlog.webhookFormat.getContentType());
 		Assert.assertTrue(auditlog.payload, !auditlog.payload.startsWith("{\"text\":"));
 		Assert.assertTrue(auditlog.payload, auditlog.payload.contains("audit_utc_timestamp"));
-		Assert.assertTrue(auditlog.payload, auditlog.payload.contains("audit_remote_address"));
+		Assert.assertTrue(auditlog.payload, auditlog.payload.contains("audit_request_remote_address"));
 
 		// JSON
 		settings = Settings.builder()
@@ -112,7 +112,7 @@ public class WebhookAuditLogTest {
 		Assert.assertEquals(ContentType.APPLICATION_JSON, auditlog.webhookFormat.getContentType());
 		Assert.assertTrue(auditlog.payload, !auditlog.payload.startsWith("{\"text\":"));
 		Assert.assertTrue(auditlog.payload, auditlog.payload.contains("audit_utc_timestamp"));
-        Assert.assertTrue(auditlog.payload, auditlog.payload.contains("audit_remote_address"));
+        Assert.assertTrue(auditlog.payload, auditlog.payload.contains("audit_request_remote_address"));
 
 		// SLACK
 		settings = Settings.builder()
@@ -125,7 +125,7 @@ public class WebhookAuditLogTest {
 		Assert.assertEquals(ContentType.APPLICATION_JSON, auditlog.webhookFormat.getContentType());
 		Assert.assertTrue(auditlog.payload, auditlog.payload.startsWith("{\"text\":"));
 		Assert.assertTrue(auditlog.payload, auditlog.payload.contains("audit_utc_timestamp"));
-        Assert.assertTrue(auditlog.payload, auditlog.payload.contains("audit_remote_address"));
+        Assert.assertTrue(auditlog.payload, auditlog.payload.contains("audit_request_remote_address"));
 	}
 
 	@Test
@@ -359,17 +359,17 @@ public class WebhookAuditLogTest {
 	}
 
 	private void assertStringContainsAllKeysAndValues(String in) {
-		Assert.assertTrue(in.contains(AuditMessage.FORMAT_VERSION));
-		Assert.assertTrue(in.contains(AuditMessage.CATEGORY));
-		//Assert.assertTrue(in.contains(AuditMessage.REQUEST_USER));
-		Assert.assertTrue(in.contains(AuditMessage.REMOTE_ADDRESS));
-		Assert.assertTrue(in.contains(AuditMessage.REQUEST_TYPE));
-		Assert.assertTrue(in.contains(AuditMessage.UTC_TIMESTAMP));
-		Assert.assertTrue(in.contains(Category.FAILED_LOGIN.name()));
-		Assert.assertTrue(in.contains("Forbidden"));
-		Assert.assertTrue(in.contains("Details"));
-		Assert.assertTrue(in.contains("John Doe"));
-		Assert.assertTrue(in.contains("8.8.8.8"));
-		Assert.assertTrue(in.contains("CN=kirk,OU=client,O=client,L=test,C=DE"));
+		Assert.assertTrue(in, in.contains(AuditMessage.FORMAT_VERSION));
+		Assert.assertTrue(in, in.contains(AuditMessage.CATEGORY));
+		Assert.assertTrue(in, in.contains(AuditMessage.FORMAT_VERSION));
+		Assert.assertTrue(in, in.contains(AuditMessage.REMOTE_ADDRESS));
+		Assert.assertTrue(in, in.contains(AuditMessage.ORIGIN));
+		Assert.assertTrue(in, in.contains(AuditMessage.REQUEST_TYPE));
+		Assert.assertTrue(in, in.contains(AuditMessage.UTC_TIMESTAMP));
+		Assert.assertTrue(in, in.contains(Category.FAILED_LOGIN.name()));
+		Assert.assertTrue(in, in.contains("FAILED_LOGIN"));
+		Assert.assertTrue(in, in.contains("John Doe"));
+		Assert.assertTrue(in, in.contains("8.8.8.8"));
+		//Assert.assertTrue(in, in.contains("CN=kirk,OU=client,O=client,L=test,C=DE"));
 	}
 }

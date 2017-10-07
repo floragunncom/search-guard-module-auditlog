@@ -40,7 +40,7 @@ public final class AuditLogImpl extends AbstractAuditLog {
     
 	// package private for unit tests :(
     final ExecutorService pool;
-    
+        
     AuditLogSink delegate;
     
     private static void printLicenseInfo() {
@@ -89,15 +89,17 @@ public final class AuditLogImpl extends AbstractAuditLog {
         int threadPoolSize = settings.getAsInt(ConfigConstants.SEARCHGUARD_AUDIT_THREADPOOL_SIZE, DEFAULT_THREAD_POOL_SIZE).intValue();
         int threadPoolMaxQueueLen = settings.getAsInt(ConfigConstants.SEARCHGUARD_AUDIT_THREADPOOL_MAX_QUEUE_LEN, DEFAULT_THREAD_POOL_MAX_QUEUE_LEN).intValue();
         
-        if (threadPoolSize <= 0) {
-            threadPoolSize = DEFAULT_THREAD_POOL_SIZE;
+        if (threadPoolSize > 0) {
+            if (threadPoolMaxQueueLen <= 0) {
+                threadPoolMaxQueueLen = DEFAULT_THREAD_POOL_MAX_QUEUE_LEN;
+            }
+
+            this.pool = createExecutor(threadPoolSize, threadPoolMaxQueueLen);
+        } else {
+            this.pool = null;
         }
         
-        if (threadPoolMaxQueueLen <= 0) {
-            threadPoolMaxQueueLen = DEFAULT_THREAD_POOL_MAX_QUEUE_LEN;
-        }
-
-        this.pool = createExecutor(threadPoolSize, threadPoolMaxQueueLen);
+        
       
         final String index = settings.get(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_INDEX,"auditlog6");
         final String doctype = settings.get(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_TYPE,"auditlog");
@@ -214,7 +216,7 @@ public final class AuditLogImpl extends AbstractAuditLog {
     	// only save if we have a valid delegate
 
         if(delegate != null) {
-            if(delegate.isHandlingBackpressure()) {
+            if(delegate.isHandlingBackpressure() || pool == null) {
                 delegate.store(msg);
             } else {
                 saveAsync(msg); 

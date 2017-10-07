@@ -14,7 +14,6 @@
 
 package com.floragunn.searchguard.dlic.auditlog;
 
-import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -24,7 +23,6 @@ import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.threadpool.ThreadPool;
 
-import com.floragunn.searchguard.auditlog.impl.AbstractAuditLog;
 import com.floragunn.searchguard.auditlog.impl.AuditLogSink;
 import com.floragunn.searchguard.auditlog.impl.AuditMessage;
 
@@ -39,11 +37,6 @@ public class TestAuditlogImpl extends AuditLogSink {
     }
 
     @Override
-    public void close() throws IOException {
-
-    }
-
-    @Override
     public synchronized void store(AuditMessage msg) {
         sb.append(msg.toPrettyString()+System.lineSeparator());
         messages.add(msg);
@@ -53,4 +46,11 @@ public class TestAuditlogImpl extends AuditLogSink {
         sb.setLength(0);
         messages.clear();
     }
+
+    @Override
+    public boolean isHandlingBackpressure() {
+        return true;
+    }
+    
+    
 }

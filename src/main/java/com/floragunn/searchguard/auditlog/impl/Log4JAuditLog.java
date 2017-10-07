@@ -43,7 +43,7 @@ public final class Log4JAuditLog extends AuditLogSink {
 
     @Override
     public void store(final AuditMessage msg) {
-        auditLogger.log(logLevel, msg.toPrettyString());
+        auditLogger.log(logLevel, msg.toJson());
     }
 
 }

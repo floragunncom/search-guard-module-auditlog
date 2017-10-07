@@ -30,6 +30,7 @@ import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.settings.Settings.Builder;
+import org.elasticsearch.tasks.Task;
 import org.elasticsearch.transport.TransportRequest;
 import org.junit.After;
 import org.junit.Assert;
@@ -41,6 +42,7 @@ import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.auditlog.CaptureSystemOut;
 import com.floragunn.searchguard.auditlog.MockRestRequest;
 import com.floragunn.searchguard.auditlog.impl.AuditMessage.Category;
+import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.test.AbstractSGUnitTest;
 import com.google.common.base.Joiner;
 
@@ -67,6 +69,7 @@ public class DisabledCategoriesTest {
 	public void completetlyInvalidConfigurationTest() throws Exception {
 		Builder settingsBuilder = Settings.builder();
 		settingsBuilder.put("searchguard.audit.type", "debug");
+		settingsBuilder.put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_TRANSPORT, true);
 		settingsBuilder.put("searchguard.audit.config.disabled_categories", "nonexistant");
 		AuditLogImpl auditLog = new AuditLogImpl(settingsBuilder.build(), null, null, AbstractSGUnitTest.MOCK_POOL, null, cs);
 		logAll(auditLog);
@@ -92,9 +95,10 @@ public class DisabledCategoriesTest {
 	
 	@Test
 	public void enableAllCategoryTest() throws Exception {
-		Builder settingsBuilder  = Settings.builder();
+		final Builder settingsBuilder  = Settings.builder();
 		
 		settingsBuilder.put("searchguard.audit.type", "debug");
+		settingsBuilder.put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_TRANSPORT, true);
 		
 		// we use the debug output, no ES client is needed. Also, we 
 		// do not need to close.
@@ -104,20 +108,23 @@ public class DisabledCategoriesTest {
 		
 		// we're using the ExecutorService in AuditLogImpl, so we need to wait
 		// until all tasks are finished before we can check the result
-		auditLog.pool.shutdown();
-		auditLog.pool.awaitTermination(10, TimeUnit.SECONDS);
+		//auditLog.pool.shutdown();
+		//auditLog.pool.awaitTermination(10, TimeUnit.SECONDS);
 		
 		String result = capture.getResult();
 		
-		Assert.assertTrue(categoriesPresentInLog(result, Category.values()));
+		Assert.assertTrue(Category.values()+"#"+result, categoriesPresentInLog(result, Category.values()));
 		
+		Assert.assertThat(result, containsString("testuser.transport.succeededlogin"));
+		Assert.assertThat(result, containsString("testuser.rest.succeededlogin"));
 		Assert.assertThat(result, containsString("testuser.rest.failedlogin"));
 		Assert.assertThat(result, containsString("testuser.transport.failedlogin"));
 		Assert.assertThat(result, containsString("privilege.missing"));
 		Assert.assertThat(result, containsString("action.indexattempt"));
-		Assert.assertThat(result, containsString("action.rest.ssl"));
 		Assert.assertThat(result, containsString("action.transport.ssl"));
 		Assert.assertThat(result, containsString("action.success"));
+		Assert.assertThat(result, containsString("Empty"));
+
 				
 		System.err.print(capture.getResult());
 	}
@@ -155,6 +162,7 @@ public class DisabledCategoriesTest {
 		
 		Builder settingsBuilder  = Settings.builder();
 		settingsBuilder.put("searchguard.audit.type", "debug");
+		settingsBuilder.put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_TRANSPORT, true);
 		settingsBuilder.put("searchguard.audit.config.disabled_categories", disabledCategoriesString);
 	
 		// we use the debug output, no ES client is needed. Also, we 
@@ -182,23 +190,39 @@ public class DisabledCategoriesTest {
 		result = result.replaceAll(" ", "");
 		for (Category category : categories) {
 			if(!result.contains("\""+AuditMessage.CATEGORY+"\":\""+category.name()+"\"")) {
-				return false;
+				System.out.println("MISSING: "+category.name());
+			    return false;
 			}
 		}
 		return true;
 	}
     
 	protected void logAll(AuditLog auditLog) {
-		logRestFailedLogin(auditLog);
-		logTransportFailedLogin(auditLog);
-		logMissingPrivileges(auditLog);
-		logTransportBadHeaders(auditLog);
+		//11 requests
+	    logRestFailedLogin(auditLog);
 		logRestBadHeaders(auditLog);
-		logSgIndexAttempt(auditLog);
 		logRestSSLException(auditLog);
-		logTransportSSLException(auditLog);
+		logRestSucceededLogin(auditLog);
+		
+		logMissingPrivileges(auditLog);
+		logSgIndexAttempt(auditLog);
 		logAuthenticatedRequest(auditLog);
+		
+		logTransportSSLException(auditLog);
+		logTransportBadHeaders(auditLog);
+		logTransportFailedLogin(auditLog);
+		logTransportSucceededLogin(auditLog);
     }
+	
+	 protected void logRestSucceededLogin(AuditLog auditLog) {
+	     auditLog.logSucceededLogin("testuser.rest.succeededlogin", false, "testuser.rest.succeededlogin", new MockRestRequest());
+	 }
+	 
+	 protected void logTransportSucceededLogin(AuditLog auditLog) {
+	     auditLog.logSucceededLogin("testuser.transport.succeededlogin", false, "testuser.transport.succeededlogin", new TransportRequest.Empty(), new Task(0, "x", "ac", "", null));
+	 }
+	
+	
     protected void logRestFailedLogin(AuditLog auditLog) {
     	auditLog.logFailedLogin("testuser.rest.failedlogin", false, "testuser.rest.failedlogin", new MockRestRequest());
     }

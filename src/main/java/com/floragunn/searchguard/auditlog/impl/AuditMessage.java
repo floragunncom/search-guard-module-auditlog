@@ -32,6 +32,7 @@ import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.common.xcontent.XContentHelper;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.common.xcontent.json.JsonXContent;
+import org.elasticsearch.index.shard.ShardId;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.joda.time.format.DateTimeFormat;
@@ -68,6 +69,7 @@ public final class AuditMessage {
     public static final String TYPES = "audit_trace_doc_types";
     public static final String SOURCE = "audit_trace_doc_source";
     public static final String INDICES = "audit_trace_indices";
+    public static final String SHARD_ID = "audit_trace_shard_id";
     public static final String RESOLVED_INDICES = "audit_trace_resolved_indices";
     
     public static final String EXCEPTION = "audit_request_exception_stacktrace";
@@ -199,6 +201,12 @@ public final class AuditMessage {
     public void addTaskId(long id) {
          auditInfo.put(TASK_ID, id);
     }
+    
+    public void addShardId(ShardId id) {
+        if(id != null) {
+            auditInfo.put(SHARD_ID, id.getId());
+        }
+   }
     
     public void addTaskParentId(String id) {
         if(id != null) {

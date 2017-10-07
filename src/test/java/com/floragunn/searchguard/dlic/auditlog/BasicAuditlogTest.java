@@ -21,6 +21,7 @@ import org.elasticsearch.common.settings.Settings;
 import org.junit.Assert;
 import org.junit.Test;
 
+import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.test.helper.rest.RestHelper.HttpResponse;
 
 public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
@@ -30,6 +31,8 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
 
         Settings additionalSettings = Settings.builder()
                 .put("searchguard.audit.type", TestAuditlogImpl.class.getName())
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_TRANSPORT, true)
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_RESOLVE_BULK_REQUESTS, true)
                 .put("searchguard.audit.enable_request_details", true)
                 .put("searchguard.audit.threadpool.size", 0)
                 .build();
@@ -97,10 +100,10 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
 
     public void testUnknownAuthorization() throws Exception {
        
-        HttpResponse response = rh.executeGetRequest("", new BasicHeader("Authorization", "unknown "+encodeBasicHeader("unknown", "unknown")));
+        HttpResponse response = rh.executeGetRequest("", encodeBasicHeader("unknown", "unknown"));
         Assert.assertEquals(HttpStatus.SC_UNAUTHORIZED, response.getStatusCode());
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("FAILED_LOGIN"));
-        Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("Authorization=unknown"));
+        Assert.assertTrue(TestAuditlogImpl.sb.toString(),TestAuditlogImpl.sb.toString().contains("Basic dW5rbm93bjp1bmtub3du"));
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("utc_timestamp"));
         Assert.assertFalse(TestAuditlogImpl.sb.toString().contains("AUTHENTICATED"));
         Assert.assertEquals(1, TestAuditlogImpl.messages.size());
@@ -173,17 +176,18 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
             
         System.out.println("##### msaerch");
         HttpResponse response = rh.executePostRequest("_msearch?pretty", msearch, encodeBasicHeader("admin", "admin"));        
-        //Assert.assertEquals(response.getStatusReason(), HttpStatus.SC_OK, response.getStatusCode());
+        Assert.assertEquals(response.getStatusReason(), HttpStatus.SC_OK, response.getStatusCode());
         System.out.println(TestAuditlogImpl.sb.toString());
-        //Assert.assertTrue(TestAuditlogImpl.sb.toString(), TestAuditlogImpl.sb.toString().contains("indices:data/read/msearch"));
+        Assert.assertTrue(TestAuditlogImpl.sb.toString(), TestAuditlogImpl.sb.toString().contains("indices:data/read/msearch"));
         Assert.assertTrue(TestAuditlogImpl.sb.toString(), TestAuditlogImpl.sb.toString().contains("indices:data/read/search"));
         Assert.assertTrue(TestAuditlogImpl.sb.toString(), TestAuditlogImpl.sb.toString().contains("match_all"));
-        Assert.assertEquals("expected 3", 3, TestAuditlogImpl.messages.size());
+        Assert.assertEquals(TestAuditlogImpl.sb.toString(), 4, TestAuditlogImpl.messages.size());
 	}
 	
 	
     public void testBulkAuth() throws Exception {
 
+        System.out.println("#### testBulkAuth");
         String bulkBody = 
                 "{ \"index\" : { \"_index\" : \"test\", \"_type\" : \"type1\", \"_id\" : \"1\" } }"+System.lineSeparator()+
                 "{ \"field1\" : \"value1\" }" +System.lineSeparator()+
@@ -207,7 +211,8 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("indices:data/write/bulk"));
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("IndexRequest"));
         System.out.println(TestAuditlogImpl.sb.toString());
-        Assert.assertEquals(8, TestAuditlogImpl.messages.size());
+        //may vary because we log shardrequests which are not predictable here
+        Assert.assertTrue(TestAuditlogImpl.messages.size() >= 17); 
     }
     
     public void testBulkNonAuth() throws Exception {
@@ -235,7 +240,8 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("MISSING_PRIVILEGES"));
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("indices:data/write/bulk[s]"));
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("IndexRequest"));
-        Assert.assertEquals(2, TestAuditlogImpl.messages.size());
+        //may vary because we log shardrequests which are not predictable here
+        Assert.assertTrue(TestAuditlogImpl.messages.size() >= 7);
     }
 	
     public void testUpdateSettings() throws Exception {
@@ -256,7 +262,8 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("AUTHENTICATED"));
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("cluster:admin/settings/update"));
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("discovery.zen.minimum_master_nodes"));
-        Assert.assertEquals(1, TestAuditlogImpl.messages.size());
+        //may vary because we log may hit master directly or not
+        Assert.assertTrue(TestAuditlogImpl.messages.size() > 1);
     }
     
     @Test
@@ -265,7 +272,7 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
         Settings additionalSettings = Settings.builder()
                 .put("searchguard.audit.type", "internal_elasticsearch")
                 .put("searchguard.audit.enable_request_details", false)
-                .put("searchguard.audit.threadpool.size", 0)
+                .put("searchguard.audit.threadpool.size", 10) //must be greater 0
                 .put("searchguard.audit.config.index", "'auditlog-'YYYY.MM.dd.ss")
                 .build();
         

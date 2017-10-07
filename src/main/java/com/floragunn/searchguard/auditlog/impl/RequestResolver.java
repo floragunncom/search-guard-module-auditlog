@@ -22,27 +22,20 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import org.elasticsearch.action.ActionRequest;
-import org.elasticsearch.action.CompositeIndicesRequest;
 import org.elasticsearch.action.DocWriteRequest;
 import org.elasticsearch.action.IndicesRequest;
 import org.elasticsearch.action.admin.cluster.settings.ClusterUpdateSettingsRequest;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
+import org.elasticsearch.action.admin.indices.mapping.put.PutMappingRequest;
 import org.elasticsearch.action.bulk.BulkItemRequest;
-import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.bulk.BulkShardRequest;
 import org.elasticsearch.action.delete.DeleteRequest;
 import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.get.MultiGetRequest;
-import org.elasticsearch.action.get.MultiGetRequest.Item;
 import org.elasticsearch.action.index.IndexRequest;
-import org.elasticsearch.action.search.MultiSearchRequest;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.support.IndicesOptions;
-import org.elasticsearch.action.support.WriteRequest;
-import org.elasticsearch.action.termvectors.MultiTermVectorsRequest;
-import org.elasticsearch.action.termvectors.TermVectorsRequest;
 import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.service.ClusterService;
@@ -51,15 +44,15 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.common.xcontent.XContentHelper;
 import org.elasticsearch.common.xcontent.XContentType;
+import org.elasticsearch.index.Index;
 import org.elasticsearch.index.reindex.DeleteByQueryRequest;
 import org.elasticsearch.index.reindex.ReindexRequest;
 import org.elasticsearch.index.reindex.UpdateByQueryRequest;
 import org.elasticsearch.tasks.Task;
-import org.elasticsearch.tasks.TaskId;
 import org.elasticsearch.transport.TransportRequest;
 
-import com.floragunn.searchguard.auditlog.impl.AuditMessage.Category;
 import com.floragunn.searchguard.auditlog.AuditLog.Origin;
+import com.floragunn.searchguard.auditlog.impl.AuditMessage.Category;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.support.WildcardMatcher;
 
@@ -135,13 +128,12 @@ public final class RequestResolver {
         //return messages;
         
         if(resolveBulk && request instanceof BulkShardRequest) { 
-            
             final BulkItemRequest[] innerRequests = ((BulkShardRequest) request).items();
             final List<AuditMessage> messages = new ArrayList<AuditMessage>(innerRequests.length);
             
             for(BulkItemRequest ar: innerRequests) {
                 final DocWriteRequest innerRequest = ar.request();
-                messages.add(resolveInner(
+                final AuditMessage msg = resolveInner(
                         category, 
                         effectiveUser, 
                         sgAdmin, 
@@ -157,7 +149,10 @@ public final class RequestResolver {
                         cs, 
                         settings, 
                         withDetails, 
-                        exception));
+                        exception);
+                 msg.addShardId(((BulkShardRequest) request).shardId());
+                
+                messages.add(msg);
             }
             
             return messages;
@@ -229,7 +224,7 @@ public final class RequestResolver {
         
         if(task != null) {
             msg.addTaskId(task.getId());
-            if(task.getParentTaskId().isSet()) {
+            if(task.getParentTaskId() != null && task.getParentTaskId().isSet()) {
                 msg.addTaskParentId(task.getParentTaskId().toString());
             }
         }
@@ -262,6 +257,7 @@ public final class RequestResolver {
             final String[] indices = arrayOrEmpty(ir.indices());
             final String type = ir.type();
             final String id = ir.id();
+            msg.addShardId(ir.shardId());
             msg.addType(type);
             msg.addId(id);
             if(withDetails) {
@@ -272,6 +268,7 @@ public final class RequestResolver {
             final String[] indices = arrayOrEmpty(dr.indices());
             final String type = dr.type();
             final String id = dr.id();
+            msg.addShardId(dr.shardId());
             msg.addType(type);
             msg.addId(id);
             if(withDetails) {
@@ -346,6 +343,21 @@ public final class RequestResolver {
             final String[] indices = arrayOrEmpty(ir.indices());
             if(withDetails) {
                 addIndicesSourceSafe(msg, indices, resolver, cs, null, settings, false);
+            }
+        } else if (request instanceof PutMappingRequest) {
+            final PutMappingRequest pr = (PutMappingRequest) request;
+            final Index ci = pr.getConcreteIndex();
+            msg.addType(pr.type());
+            String[] indices = new String[0];
+            
+            if(ci != null) {
+                indices = new String[]{ci.getName()};
+            }
+            
+            if(withDetails) {
+                msg.addIndices(indices);
+                msg.addResolvedIndices(indices);
+                msg.addSource(pr.source());
             }
         } else if (request instanceof IndicesRequest) { //less specific
             final IndicesRequest ir = (IndicesRequest) request;

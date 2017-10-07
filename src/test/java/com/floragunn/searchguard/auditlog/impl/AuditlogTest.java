@@ -27,6 +27,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 import com.floragunn.searchguard.dlic.auditlog.TestAuditlogImpl;
+import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.test.AbstractSGUnitTest;
 
 public class AuditlogTest {
@@ -46,6 +47,7 @@ public class AuditlogTest {
     public void testClusterHealthRequest() {
         Settings settings = Settings.builder()
                 .put("searchguard.audit.type", TestAuditlogImpl.class.getName())
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_TRANSPORT, true)
                 .put("searchguard.audit.enable_request_details", true)
                 .put("searchguard.audit.threadpool.size", 0)
                 .build();
@@ -64,6 +66,7 @@ public class AuditlogTest {
         
         Settings settings = Settings.builder()
                 .put("searchguard.audit.type", TestAuditlogImpl.class.getName())
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_TRANSPORT, true)
                 .put("searchguard.audit.enable_request_details", true)
                 .put("searchguard.audit.threadpool.size", 0)
                 .build();
