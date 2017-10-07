@@ -218,8 +218,18 @@ public final class AuditLogImpl extends AbstractAuditLog {
         if(delegate != null) {
             if(delegate.isHandlingBackpressure() || pool == null) {
                 delegate.store(msg);
+                if(log.isTraceEnabled()) {
+                    log.trace("stored on delegate {} synchronously", delegate.getClass().getSimpleName());
+                }
             } else {
                 saveAsync(msg); 
+                if(log.isTraceEnabled()) {
+                    log.trace("will store on delegate {} asynchronously", delegate.getClass().getSimpleName());
+                }
+            }
+        } else {
+            if(log.isTraceEnabled()) {
+                log.trace("delegate is null");
             }
         }
     }
@@ -230,6 +240,9 @@ public final class AuditLogImpl extends AbstractAuditLog {
                 @Override
                 public void run() {
                     delegate.store(msg);
+                    if(log.isTraceEnabled()) {
+                        log.trace("stored on delegate {} asynchronously", delegate.getClass().getSimpleName());
+                    }
                 }
             });                                                      		    		
     	} catch(Exception ex) {
