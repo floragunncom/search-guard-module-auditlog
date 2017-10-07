@@ -19,7 +19,6 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.security.KeyManagementException;
 import java.security.KeyStore;
@@ -27,36 +26,34 @@ import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.security.UnrecoverableKeyException;
 import java.security.cert.CertificateException;
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
+import javax.net.ssl.HostnameVerifier;
 import javax.net.ssl.SSLContext;
 import javax.xml.bind.DatatypeConverter;
 
-import org.apache.http.HttpEntity;
 import org.apache.http.HttpHeaders;
+import org.apache.http.HttpHost;
 import org.apache.http.client.config.RequestConfig;
-import org.apache.http.client.methods.CloseableHttpResponse;
-import org.apache.http.client.methods.HttpPost;
-import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
-import org.apache.http.conn.ssl.SSLContextBuilder;
-import org.apache.http.conn.ssl.SSLContexts;
-import org.apache.http.entity.ContentType;
-import org.apache.http.entity.StringEntity;
-import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.HttpClients;
+import org.apache.http.conn.ssl.DefaultHostnameVerifier;
+import org.apache.http.conn.ssl.NoopHostnameVerifier;
+import org.apache.http.impl.nio.client.HttpAsyncClientBuilder;
 import org.apache.http.message.BasicHeader;
+import org.apache.http.nio.conn.ssl.SSLIOSessionStrategy;
+import org.apache.http.ssl.SSLContextBuilder;
+import org.apache.http.ssl.SSLContexts;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.common.xcontent.NamedXContentRegistry;
-import org.elasticsearch.common.xcontent.XContentFactory;
-import org.elasticsearch.common.xcontent.XContentParser;
+import org.elasticsearch.action.index.IndexRequest;
+import org.elasticsearch.action.index.IndexResponse;
+import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
+import org.elasticsearch.client.RestClient;
+import org.elasticsearch.client.RestClientBuilder;
+import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.common.xcontent.XContentType;
 
-import com.floragunn.searchguard.auditlog.support.Cycle;
 import com.google.common.collect.Lists;
 
 public class HttpClient implements Closeable {
@@ -99,10 +96,6 @@ public class HttpClient implements Closeable {
             return this;
         }
 
-        /*public HttpClientBuilder setKerberosCredentials(final Path keytab) {
-           this.keytab = keytab;
-        }*/
-
         public HttpClient build() throws Exception {
             return new HttpClient(trustStore, truststorePassword, basicCredentials, keystore, keystorePassword, verifyHostnames, ssl,
                     servers);
@@ -118,17 +111,14 @@ public class HttpClient implements Closeable {
         return new HttpClientBuilder(servers);
     }
 
-    private final List<String> servers = new ArrayList<String>(); // server:port
     private final File trustStore;
     private final String truststorePassword;
     private final Logger log = LogManager.getLogger(this.getClass());
-    private CloseableHttpClient client;
+    private RestHighLevelClient rclient;
     private String basicCredentials;
-    // private Path keytab;
     private File keystore;
     private String keystorePassword;
     private boolean verifyHostnames;
-    private Cycle<String> cservers;
     private boolean ssl;
 
     private HttpClient(final File trustStore, final String truststorePassword, final String basicCredentials, final File keystore,
@@ -144,87 +134,68 @@ public class HttpClient implements Closeable {
         this.verifyHostnames = verifyHostnames;
         this.ssl = ssl;
 
-        this.servers.addAll(Arrays.asList(servers));
-        this.cservers = new Cycle<String>(servers);
-        this.client = createHTTPClient();
+        HttpHost[] hosts = Arrays.stream(servers)
+                .map(s->s.split(":"))
+                .map(s->new HttpHost(s[0], Integer.parseInt(s[1]),ssl?"https":"http"))
+                .collect(Collectors.toList()).toArray(new HttpHost[0]);
+                
+        
+        RestClientBuilder builder = RestClient.builder(hosts);
+        //builder.setMaxRetryTimeoutMillis(10000);
+        builder.setFailureListener(new RestClient.FailureListener() {
+            @Override
+            public void onFailure(HttpHost host) {
+                
+            }
+        });
+        /*builder.setRequestConfigCallback(new RestClientBuilder.RequestConfigCallback() {
+            @Override
+            public RequestConfig.Builder customizeRequestConfig(RequestConfig.Builder requestConfigBuilder) {
+                requestConfigBuilder.setAuthenticationEnabled(true);
+                return requestConfigBuilder.setSocketTimeout(10000); 
+            }
+        });*/
+        builder.setHttpClientConfigCallback(new RestClientBuilder.HttpClientConfigCallback() {
+            @Override
+            public HttpAsyncClientBuilder customizeHttpClient(HttpAsyncClientBuilder httpClientBuilder) {
+                try {
+                    return asyncClientBuilder(httpClientBuilder);
+                } catch (Exception e) {
+                    // TODO Auto-generated catch block
+                    e.printStackTrace();
+                    throw new RuntimeException(e);
+                }
+            }
+        });
+        
+        rclient = new RestHighLevelClient(builder);
     }
 
     public boolean index(final String content, final String index, final String type, final boolean refresh) {
 
-        for (int i = 0; i < servers.size(); i++) {
-
-            final String server = cservers.next();
-
-            final HttpPost indexRequest = new HttpPost("http" + (ssl ? "s" : "") + "://" + server + "/" + index + "/" + type
-                    + (refresh ? "/?refresh=true" : "/"));
-
-            final StringEntity entity = new StringEntity(content, ContentType.APPLICATION_JSON);
-            indexRequest.setEntity(entity);
-
-            CloseableHttpResponse response = null;
-            XContentParser parser = null;
             try {
-                response = client.execute(indexRequest);
+                final IndexResponse response = rclient.index(new IndexRequest(index, type)
+                              .setRefreshPolicy(RefreshPolicy.IMMEDIATE)
+                              .source(content, XContentType.JSON));
                 
-                if (response != null && response.getStatusLine() != null && response.getStatusLine().getStatusCode() < 400) {
-
-                    // TODO check successfull at least 1
-                    HttpEntity responseEntity = response.getEntity();
-
-                    if (responseEntity != null) {
-
-                        final InputStream contentStream = responseEntity.getContent();
-
-                        if (contentStream != null) {
-                            parser = XContentFactory.xContent(XContentType.JSON).createParser(NamedXContentRegistry.EMPTY, contentStream);
-                            final Map<String, Object> map = parser.map();
-
-                            if (map != null && map.containsKey("_shards")) {
-                                final Map<String, Object> shards = (Map<String, Object>) map.get("_shards");
-
-                                if (shards != null && shards.containsKey("successful")) {
-                                    final Integer successfulShards = (Integer) shards.get("successful");
-                                    return successfulShards != null && successfulShards.intValue() > 0;
-                                }
-
-                            }
-                        }
-                    }
-                }
+                return response.getShardInfo().getSuccessful() > 0 && response.getShardInfo().getFailed() == 0;
                 
-            } catch (final Exception e) {
-                log.debug(e.toString(), e);
-            } finally {
-                if (response != null) {
-                    try {
-                        response.close();
-                    } catch (final Exception e) {
-                        // ignore
-                    }
-                }
-
-                if (parser != null) {
-                    parser.close();
-                }
+            } catch (Exception e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+                return false;
             }
-        }
-
-        return false;
     }
 
-    private final CloseableHttpClient createHTTPClient() throws NoSuchAlgorithmException, KeyStoreException, CertificateException,
+    private final HttpAsyncClientBuilder asyncClientBuilder(HttpAsyncClientBuilder httpClientBuilder) throws NoSuchAlgorithmException, KeyStoreException, CertificateException,
     FileNotFoundException, IOException, UnrecoverableKeyException, KeyManagementException {
 
         // basic auth
         // pki auth
-        // kerberos auth
 
-        final org.apache.http.impl.client.HttpClientBuilder hcb = HttpClients.custom();
-
-        
         if (ssl) {
 
-            final SSLContextBuilder sslContextbBuilder = SSLContexts.custom().useTLS();
+            final SSLContextBuilder sslContextBuilder = SSLContexts.custom();
 
             if (log.isTraceEnabled()) {
                 log.trace("Configure HTTP client with SSL");
@@ -234,48 +205,32 @@ public class HttpClient implements Closeable {
                 final KeyStore myTrustStore = KeyStore.getInstance(trustStore.getName().endsWith("jks") ? "JKS" : "PKCS12");
                 myTrustStore.load(new FileInputStream(trustStore),
                         truststorePassword == null || truststorePassword.isEmpty() ? null : truststorePassword.toCharArray());
-                sslContextbBuilder.loadTrustMaterial(myTrustStore);
+                sslContextBuilder.loadTrustMaterial(myTrustStore, null);
             }
 
             if (keystore != null) {
                 final KeyStore keyStore = KeyStore.getInstance(keystore.getName().endsWith("jks") ? "JKS" : "PKCS12");
                 keyStore.load(new FileInputStream(keystore), keystorePassword == null || keystorePassword.isEmpty() ? null
                         : keystorePassword.toCharArray());
-                sslContextbBuilder.loadKeyMaterial(keyStore, keystorePassword == null || keystorePassword.isEmpty() ? null
+                sslContextBuilder.loadKeyMaterial(keyStore, keystorePassword == null || keystorePassword.isEmpty() ? null
                         : keystorePassword.toCharArray());
             }
 
-            final SSLContext sslContext = sslContextbBuilder.build();
-            final SSLConnectionSocketFactory sslsf = new SSLConnectionSocketFactory(sslContext, new String[] { "TLSv1.1", "TLSv1.2" },
-                    null, verifyHostnames ? SSLConnectionSocketFactory.STRICT_HOSTNAME_VERIFIER
-                            : SSLConnectionSocketFactory.ALLOW_ALL_HOSTNAME_VERIFIER);
-
-            hcb.setSSLSocketFactory(sslsf);
+            final HostnameVerifier hnv = verifyHostnames?new DefaultHostnameVerifier():NoopHostnameVerifier.INSTANCE;
+            String[] supportedProtocols = new String[] { "TLSv1.1", "TLSv1.2" };
+            String[] supportedCipherSuites = null;
+            
+            final SSLContext sslContext = sslContextBuilder.build();
+            httpClientBuilder.setSSLStrategy(new SSLIOSessionStrategy(
+                    sslContext,
+                    supportedProtocols,
+                    supportedCipherSuites,
+                    hnv
+                    ));
         }
 
-        /*if (keytab != null) {
-
-            //System.setProperty("java.security.auth.login.config", "login.conf");
-            //System.setProperty("java.security.krb5.conf", "krb5.conf");
-
-
-            final CredentialsProvider credsProvider = new BasicCredentialsProvider();
-            //SPNEGO/Kerberos setup
-            log.debug("SPNEGO activated");
-            final AuthSchemeProvider nsf = new LoginSPNegoSchemeFactory(true);
-            final Credentials jaasCreds = new JaasCredentials();
-            credsProvider.setCredentials(new AuthScope(null, -1, null, AuthSchemes.SPNEGO), jaasCreds);
-            credsProvider.setCredentials(new AuthScope(null, -1, null, AuthSchemes.NTLM), new NTCredentials("Guest", "Guest", "Guest",
-                    "Guest"));
-            final Registry<AuthSchemeProvider> authSchemeRegistry = RegistryBuilder.<AuthSchemeProvider> create()
-                    .register(AuthSchemes.SPNEGO, nsf).register(AuthSchemes.NTLM, new NTLMSchemeFactory()).build();
-
-            hcb.setDefaultAuthSchemeRegistry(authSchemeRegistry);
-            hcb.setDefaultCredentialsProvider(credsProvider);
-        }*/
-
         if (basicCredentials != null) {
-            hcb.setDefaultHeaders(Lists.newArrayList(new BasicHeader(HttpHeaders.AUTHORIZATION, "Basic " + basicCredentials)));
+            httpClientBuilder.setDefaultHeaders(Lists.newArrayList(new BasicHeader(HttpHeaders.AUTHORIZATION, "Basic " + basicCredentials)));
         }
         
         // TODO: set a timeout until we have a proper way to deal with back pressure
@@ -286,131 +241,16 @@ public class HttpClient implements Closeable {
           .setConnectionRequestTimeout(timeout * 1000)
           .setSocketTimeout(timeout * 1000).build();
         
-        return hcb.setDefaultRequestConfig(config).build();
+        httpClientBuilder.setDefaultRequestConfig(config);
+        
+        return httpClientBuilder;
         
     }
 
     @Override
     public void close() throws IOException {
-        if (client != null) {
-            client.close();
+        if (rclient != null) {
+            rclient.close();
         }
     }
-
-    /*
-    private static class JaasCredentials implements Credentials {
-
-        @Override
-        public String getPassword() {
-            return null;
-        }
-
-        @Override
-        public Principal getUserPrincipal() {
-            return null;
-        }
-    }
-
-    @SuppressWarnings("deprecation")
-    private static class LoginSPNegoSchemeFactory implements AuthSchemeFactory, AuthSchemeProvider {
-
-        private final boolean stripPort;
-
-        public LoginSPNegoSchemeFactory(final boolean stripPort) {
-            super();
-            this.stripPort = stripPort;
-        }
-
-        public LoginSPNegoSchemeFactory() {
-            this(false);
-        }
-
-        public boolean isStripPort() {
-            return stripPort;
-        }
-
-        public AuthScheme newInstance(final HttpParams params) {
-            return new LoginSPNegoScheme(this.stripPort);
-        }
-
-        public AuthScheme create(final HttpContext context) {
-            return new LoginSPNegoScheme(this.stripPort);
-        }
-
-    }
-
-    private static class LoginSPNegoScheme extends SPNegoScheme {
-
-        private static final Oid _SPNEGO_OID;
-        static {
-
-            Oid oid = null;
-
-            try {
-                oid = new Oid("1.3.6.1.5.5.2");
-            } catch (GSSException e) {
-
-            }
-
-
-            _SPNEGO_OID = oid;
-        }
-
-
-        private final Subject initiatorSubject;
-        private final String acceptorPrincipal;
-
-        public LoginSPNegoScheme() {
-            super();
-            // TODO Auto-generated constructor stub
-        }
-
-        public LoginSPNegoScheme(boolean stripPort) {
-            super(stripPort);
-            // TODO Auto-generated constructor stub
-        }
-
-        @Override
-        protected byte[] generateToken(byte[] input, String authServer) throws GSSException {
-
-            byte[] token = input;
-            if (token == null) {
-                token = new byte[0];
-            }
-            final GSSManager manager = getManager();
-            final GSSName serverName = manager.createName("HTTP@" + authServer, GSSName.NT_HOSTBASED_SERVICE);
-            final GSSContext gssContext = manager.createContext(
-                    serverName.canonicalize(_SPNEGO_OID), _SPNEGO_OID, null, GSSContext.DEFAULT_LIFETIME);
-            gssContext.requestMutualAuth(true);
-            gssContext.requestCredDeleg(true);
-            return gssContext.initSecContext(token, 0, token.length);
-
-            //
-            final PrivilegedExceptionAction<GSSCredential> action = new PrivilegedExceptionAction<GSSCredential>() {
-                @Override
-                public GSSCredential run() throws GSSException {
-                    return MANAGER.createCredential(null, GSSCredential.DEFAULT_LIFETIME, KrbConstants.SPNEGO, GSSCredential.INITIATE_ONLY);
-                }
-            };
-
-            final GSSCredential clientcreds = Subject.doAs(initiatorSubject, action);
-
-            final GSSContext context = MANAGER.createContext(MANAGER.createName(acceptorPrincipal, GSSName.NT_USER_NAME, KrbConstants.SPNEGO),
-                    KrbConstants.SPNEGO, clientcreds, GSSContext.DEFAULT_LIFETIME);
-
-            //TODO make configurable
-            context.requestMutualAuth(true);
-            context.requestConf(true);
-            context.requestInteg(true);
-            context.requestReplayDet(true);
-            context.requestSequenceDet(true);
-            context.requestCredDeleg(false);
-
-            return context;
-
-
-        }
-
-    }*/
-
 }

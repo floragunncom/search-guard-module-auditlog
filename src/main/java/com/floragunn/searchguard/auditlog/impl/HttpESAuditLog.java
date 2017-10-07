@@ -16,6 +16,9 @@ package com.floragunn.searchguard.auditlog.impl;
 
 import java.io.IOException;
 import java.nio.file.Path;
+import java.security.KeyStore;
+import java.security.PrivateKey;
+import java.security.cert.X509Certificate;
 import java.util.Arrays;
 
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
@@ -38,6 +41,31 @@ public final class HttpESAuditLog extends AuditLogSink {
 	private final HttpClient client;
 	private final String[] servers;
 	private DateTimeFormatter indexPattern;
+	
+    private static final String[] EMPTY_STRING_ARRAY = new String[0];
+    static final String PKCS12 = "PKCS12";
+    static final String DEFAULT_KEYSTORE_PASSWORD = "changeit";
+    static final String DEFAULT_TRUSTSTORE_PASSWORD = "changeit";
+
+    public static final String AUDIT_SSL_VERIFY_HOSTNAMES = "verify_hostnames";
+    public static final boolean AUDIT_SSL_VERIFY_HOSTNAMES_DEFAULT = true;
+    public static final String AUDIT_SSL_ENABLE_SSL = "enable_ssl";
+    public static final String AUDIT_SSL_ENABLE_SSL_CLIENT_AUTH = "enable_ssl_client_auth";
+    public static final boolean AUDIT_SSL_ENABLE_SSL_CLIENT_AUTH_DEFAULT = false;
+    
+    public static final String AUDIT_SSL_JKS_CERT_ALIAS = "cert_alias";
+    public static final String AUDIT_SSL_JKS_TRUST_ALIAS = "ca_alias";
+    
+    public static final String AUDIT_SSL_PEMKEY_FILEPATH = "pemkey_filepath";
+    public static final String AUDIT_SSL_PEMKEY_CONTENT = "pemkey_content";
+    public static final String AUDIT_SSL_PEMKEY_PASSWORD = "pemkey_password";
+    public static final String AUDIT_SSL_PEMCERT_FILEPATH = "pemcert_filepath";
+    public static final String AUDIT_SSL_PEMCERT_CONTENT = "pemcert_content";
+    public static final String AUDIT_SSL_PEMTRUSTEDCAS_FILEPATH = "pemtrustedcas_filepath";
+    public static final String AUDIT_SSL_PEMTRUSTEDCAS_CONTENT = "pemtrustedcas_content";
+
+    public static final String AUDIT_SSL_ENABLED_SSL_CIPHERS = "enabled_ssl_ciphers";
+    public static final String AUDIT_SSL_ENABLED_SSL_PROTOCOLS = "enabled_ssl_protocols";
 
 	public HttpESAuditLog(final Settings settings, final Path configPath, ThreadPool threadPool,
 	        final IndexNameExpressionResolver resolver, final ClusterService clusterService) throws Exception {
@@ -47,7 +75,7 @@ public final class HttpESAuditLog extends AuditLogSink {
 		Settings auditSettings = settings.getAsSettings("searchguard.audit.config");
 
 		servers = auditSettings.getAsArray("http_endpoints", new String[] { "localhost:9200" });
-		this.index = auditSettings.get("index", "auditlog");
+		this.index = auditSettings.get("index", "auditlog6");
 		
 		try {
             this.indexPattern = DateTimeFormat.forPattern(index);
@@ -57,9 +85,9 @@ public final class HttpESAuditLog extends AuditLogSink {
         }
 		
 		this.type = auditSettings.get("type", "auditlog");
-		boolean verifyHostnames = auditSettings.getAsBoolean("verify_hostnames", true);
-		boolean enableSsl = auditSettings.getAsBoolean("enable_ssl", false);
-		boolean enableSslClientAuth = auditSettings.getAsBoolean("enable_ssl_client_auth", false);
+		boolean verifyHostnames = auditSettings.getAsBoolean(AUDIT_SSL_VERIFY_HOSTNAMES, true);
+		boolean enableSsl = auditSettings.getAsBoolean(AUDIT_SSL_ENABLE_SSL, false);
+		boolean enableSslClientAuth = auditSettings.getAsBoolean(AUDIT_SSL_ENABLE_SSL_CLIENT_AUTH , AUDIT_SSL_ENABLE_SSL_CLIENT_AUTH_DEFAULT);
 		String user = auditSettings.get("username");
 		String password = auditSettings.get("password");
 
@@ -67,6 +95,70 @@ public final class HttpESAuditLog extends AuditLogSink {
 		final Environment env = new Environment(settings, configPath);
 
 		if (enableSsl) {
+		    
+		    final boolean pem = settings.get(AUDIT_SSL_PEMTRUSTEDCAS_FILEPATH, null) != null
+                    || settings.get(AUDIT_SSL_PEMTRUSTEDCAS_CONTENT, null) != null;
+           
+		    
+		    if(pem) {
+                X509Certificate[] trustCertificates = loadCertificatesFromStream(resolveStream(AUDIT_SSL_PEMTRUSTEDCAS_CONTENT, settings));
+                
+                if(trustCertificates == null) {
+                    trustCertificates = loadCertificatesFromFile(resolve(AUDIT_SSL_PEMTRUSTEDCAS_FILEPATH, settings, configPath, true));
+                }
+                    //for client authentication
+                X509Certificate authenticationCertificate = loadCertificateFromStream(resolveStream(AUDIT_SSL_PEMCERT_CONTENT, settings));
+                
+                if(authenticationCertificate == null) {
+                    authenticationCertificate = loadCertificateFromFile(resolve(AUDIT_SSL_PEMCERT_FILEPATH, settings, configPath, enableClientAuth));
+                }
+                
+                PrivateKey authenticationKey = loadKeyFromStream(settings.get(AUDIT_SSL_PEMKEY_PASSWORD), resolveStream(AUDIT_SSL_PEMKEY_CONTENT, settings));
+                
+                if(authenticationKey == null) {
+                    authenticationKey = loadKeyFromFile(settings.get(AUDIT_SSL_PEMKEY_PASSWORD), resolve(AUDIT_SSL_PEMKEY_FILEPATH, settings, configPath, enableClientAuth));    
+                }
+
+                //cc = CredentialConfigFactory.createX509CredentialConfig(trustCertificates, authenticationCertificate, authenticationKey);
+                
+                if(log.isDebugEnabled()) {
+                    log.debug("Use PEM to secure communication with LDAP server (client auth is {})", authenticationKey!=null);
+                }
+                
+            } else {
+                final KeyStore trustStore = loadKeyStore(resolve(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_TRUSTSTORE_FILEPATH, settings, configPath, true)
+                        , settings.get(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_TRUSTSTORE_PASSWORD, DEFAULT_TRUSTSTORE_PASSWORD)
+                        , settings.get(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_TRUSTSTORE_TYPE));
+                
+                final String[] trustStoreAliases = settings.getAsArray(AUDIT_SSL_JKS_TRUST_ALIAS, null);
+                
+                //for client authentication
+                final KeyStore keyStore = loadKeyStore(resolve(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_KEYSTORE_FILEPATH, settings, configPath, enableClientAuth)
+                        , settings.get(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_KEYSTORE_PASSWORD, DEFAULT_KEYSTORE_PASSWORD)
+                        , settings.get(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_KEYSTORE_TYPE));
+                final String keyStorePassword = settings.get(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_KEYSTORE_PASSWORD, DEFAULT_KEYSTORE_PASSWORD);
+                
+                final String keyStoreAlias = settings.get(AUDIT_SSL_JKS_CERT_ALIAS, null);
+                final String[] keyStoreAliases = keyStoreAlias==null?null:new String[]{keyStoreAlias};
+                
+                if(enableSslClientAuth && keyStoreAliases == null) {
+                    throw new IllegalArgumentException(AUDIT_SSL_JKS_CERT_ALIAS+" not given");
+                }
+                
+                if(log.isDebugEnabled()) {
+                    log.debug("Use Trust-/Keystore to secure communication with LDAP server (client auth is {})", keyStore!=null);
+                    log.debug("trustStoreAliases: {}, keyStoreAlias: {}",  Arrays.toString(trustStoreAliases), keyStoreAlias);
+                }
+                
+                //cc = CredentialConfigFactory.createKeyStoreCredentialConfig(trustStore, trustStoreAliases, keyStore, keyStorePassword, keyStoreAliases);
+
+            }
+            
+		    
+		    final String[] enabledCipherSuites = settings.getAsArray(AUDIT_SSL_ENABLED_SSL_CIPHERS, EMPTY_STRING_ARRAY);   
+            final String[] enabledProtocols = settings.getAsArray(AUDIT_SSL_ENABLED_SSL_PROTOCOLS, new String[] { "TLSv1.1", "TLSv1.2" });   
+            
+		    
 			builder.enableSsl(
 					env.configFile().resolve(settings.get(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_TRUSTSTORE_FILEPATH)).toFile(),
 					settings.get(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_TRUSTSTORE_PASSWORD, "changeit"), verifyHostnames);
