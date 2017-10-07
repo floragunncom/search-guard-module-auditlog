@@ -114,13 +114,12 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
      
         HttpResponse response = rh.executeGetRequest("_search");
         Assert.assertEquals(HttpStatus.SC_UNAUTHORIZED, response.getStatusCode());
-        System.out.println(response.getBody());
-        System.out.println(TestAuditlogImpl.sb.toString());
+        Assert.assertEquals(1, TestAuditlogImpl.messages.size());
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("FAILED_LOGIN"));
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("/_search"));
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("utc_timestamp"));
         Assert.assertFalse(TestAuditlogImpl.sb.toString().contains("AUTHENTICATED"));
-        Assert.assertEquals(1, TestAuditlogImpl.messages.size());
+        
     }
     
 

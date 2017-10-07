@@ -35,13 +35,13 @@ import org.elasticsearch.transport.TransportRequest;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
-import org.junit.Rule;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import com.floragunn.searchguard.auditlog.AuditLog;
-import com.floragunn.searchguard.auditlog.CaptureSystemOut;
 import com.floragunn.searchguard.auditlog.MockRestRequest;
 import com.floragunn.searchguard.auditlog.impl.AuditMessage.Category;
+import com.floragunn.searchguard.dlic.auditlog.TestAuditlogImpl;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.test.AbstractSGUnitTest;
 import com.google.common.base.Joiner;
@@ -57,18 +57,13 @@ public class DisabledCategoriesTest {
         when(dn.getId()).thenReturn("hostaddress");
         when(dn.getHostName()).thenReturn("hostaddress");
         when(cs.localNode()).thenReturn(dn);
+        TestAuditlogImpl.clear();
     }
-
-	@Rule
-	public CaptureSystemOut capture = new CaptureSystemOut();
-	
-	@Rule
-	public ResetCategories resetCategories = new ResetCategories();
 
 	@Test
 	public void completetlyInvalidConfigurationTest() throws Exception {
 		Builder settingsBuilder = Settings.builder();
-		settingsBuilder.put("searchguard.audit.type", "debug");
+		settingsBuilder.put("searchguard.audit.type", TestAuditlogImpl.class.getName());
 		settingsBuilder.put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_TRANSPORT, true);
 		settingsBuilder.put("searchguard.audit.config.disabled_categories", "nonexistant");
 		AuditLogImpl auditLog = new AuditLogImpl(settingsBuilder.build(), null, null, AbstractSGUnitTest.MOCK_POOL, null, cs);
@@ -77,7 +72,7 @@ public class DisabledCategoriesTest {
 		auditLog.pool.shutdown();
 		auditLog.pool.awaitTermination(10, TimeUnit.SECONDS);
 
-		String result = capture.getResult();
+		String result = TestAuditlogImpl.sb.toString();
 		Assert.assertTrue(categoriesPresentInLog(result, Category.values()));
 		
 	}
@@ -89,7 +84,7 @@ public class DisabledCategoriesTest {
 		settingsBuilder.put("searchguard.audit.config.disabled_categories", "nonexistant, bad_headers");
 		AuditLog auditLog = new AuditLogImpl(settingsBuilder.build(), null, null, AbstractSGUnitTest.MOCK_POOL, null, cs);
 		logAll(auditLog);
-		String result = capture.getResult();
+		String result = TestAuditlogImpl.sb.toString();
 		Assert.assertFalse(categoriesPresentInLog(result, Category.BAD_HEADERS));		
 	}
 	
@@ -97,7 +92,7 @@ public class DisabledCategoriesTest {
 	public void enableAllCategoryTest() throws Exception {
 		final Builder settingsBuilder  = Settings.builder();
 		
-		settingsBuilder.put("searchguard.audit.type", "debug");
+		settingsBuilder.put("searchguard.audit.type", TestAuditlogImpl.class.getName());
 		settingsBuilder.put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_TRANSPORT, true);
 		
 		// we use the debug output, no ES client is needed. Also, we 
@@ -108,10 +103,10 @@ public class DisabledCategoriesTest {
 		
 		// we're using the ExecutorService in AuditLogImpl, so we need to wait
 		// until all tasks are finished before we can check the result
-		//auditLog.pool.shutdown();
-		//auditLog.pool.awaitTermination(10, TimeUnit.SECONDS);
+		auditLog.pool.shutdown();
+		auditLog.pool.awaitTermination(10, TimeUnit.SECONDS);
 		
-		String result = capture.getResult();
+		String result = TestAuditlogImpl.sb.toString();
 		
 		Assert.assertTrue(Category.values()+"#"+result, categoriesPresentInLog(result, Category.values()));
 		
@@ -124,16 +119,13 @@ public class DisabledCategoriesTest {
 		Assert.assertThat(result, containsString("action.transport.ssl"));
 		Assert.assertThat(result, containsString("action.success"));
 		Assert.assertThat(result, containsString("Empty"));
-
-				
-		System.err.print(capture.getResult());
 	}
 	
 	@Test
 	public void disableSingleCategoryTest() throws Exception {
 		for (Category category : Category.values()) {
+		    TestAuditlogImpl.clear();
 			checkCategoriesDisabled(category);
-			resetCategories.resetCategories();
 		}
 	}
 
@@ -147,10 +139,10 @@ public class DisabledCategoriesTest {
 		checkCategoriesDisabled(Category.AUTHENTICATED, Category.BAD_HEADERS, Category.FAILED_LOGIN);
 	}
 	
-	@After
+	/*@After
 	public void restoreOut() {
 		System.setOut(new PrintStream(new FileOutputStream(FileDescriptor.out)));
-	}
+	}*/
 	
 	protected void checkCategoriesDisabled(Category ... disabledCategories) throws Exception {
 
@@ -161,7 +153,7 @@ public class DisabledCategoriesTest {
 		String disabledCategoriesString = Joiner.on(",").join(categoryNames);
 		
 		Builder settingsBuilder  = Settings.builder();
-		settingsBuilder.put("searchguard.audit.type", "debug");
+		settingsBuilder.put("searchguard.audit.type", TestAuditlogImpl.class.getName());
 		settingsBuilder.put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_TRANSPORT, true);
 		settingsBuilder.put("searchguard.audit.config.disabled_categories", disabledCategoriesString);
 	
@@ -172,14 +164,13 @@ public class DisabledCategoriesTest {
 		logAll(auditLog);
 		
 		auditLog.close();
-		//auditLog.pool.shutdown();
-		//auditLog.pool.awaitTermination(10, TimeUnit.SECONDS);
 
-		String result = capture.getResult();
+		String result = TestAuditlogImpl.sb.toString();
 				
 		List<Category> allButDisablesCategories = new LinkedList<>(Arrays.asList(Category.values()));
 		allButDisablesCategories.removeAll(Arrays.asList(disabledCategories));
 		
+		System.out.println(result+"###"+disabledCategoriesString);
 		Assert.assertFalse(categoriesPresentInLog(result, disabledCategories));
 		Assert.assertTrue(categoriesPresentInLog(result, allButDisablesCategories.toArray(new Category[] {})));
 	}

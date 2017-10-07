@@ -306,17 +306,6 @@ public final class AuditMessage {
         SG_INDEX_ATTEMPT,
         SSL_EXCEPTION,
         AUTHENTICATED;
-
-        private boolean enabled = true;
-        
-        public boolean isEnabled() {
-            return enabled;
-        }
-
-        public void setEnabled(boolean enabled) {
-            this.enabled = enabled;
-        }
-
     }
 
     private String currentTime() {

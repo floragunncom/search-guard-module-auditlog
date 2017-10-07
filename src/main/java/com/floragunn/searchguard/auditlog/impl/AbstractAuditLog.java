@@ -17,6 +17,7 @@ package com.floragunn.searchguard.auditlog.impl;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -48,6 +49,7 @@ public abstract class AbstractAuditLog implements AuditLog {
     private final String[] ignoreAuditRequests;
     protected final boolean restAuditingEnabled;
     protected final boolean transportAuditingEnabled;
+    private final List<String> disabledCategories;
 
     protected AbstractAuditLog(Settings settings, final ThreadPool threadPool, final IndexNameExpressionResolver resolver, final ClusterService clusterService) {
         super();
@@ -57,7 +59,8 @@ public abstract class AbstractAuditLog implements AuditLog {
         this.resolver = resolver;
         this.clusterService = clusterService;
         
-        final String[] disabledCategories = settings.getAsArray(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_CATEGORIES, new String[]{});
+        disabledCategories = Arrays.stream(settings.getAsArray(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_CATEGORIES, new String[]{}))
+                .map(c->c.toUpperCase()).collect(Collectors.toList());
         withRequestDetails = settings.getAsBoolean(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_REQUEST_DETAILS, false);
         resolveBulkRequests = settings.getAsBoolean(ConfigConstants.SEARCHGUARD_AUDIT_RESOLVE_BULK_REQUESTS, false);
         
@@ -74,11 +77,10 @@ public abstract class AbstractAuditLog implements AuditLog {
             log.info("Configured Requests to ignore: {}", Arrays.toString(ignoreAuditRequests));
         }
         
-        // check if some categories are disabled
+        // check if some categories are invalid
         for (String event : disabledCategories) {
         	try {
-        		Category category = AuditMessage.Category.valueOf(event.toUpperCase());
-        		category.setEnabled(false);
+        		AuditMessage.Category.valueOf(event.toUpperCase());
         	} catch(IllegalArgumentException iae) {
         		log.error("Unkown category {}, please check searchguard.audit.config.disabled_categories settings", event);        		
         	}
@@ -353,7 +355,7 @@ public abstract class AbstractAuditLog implements AuditLog {
             return false;
         }
         
-        if (category.isEnabled()) {
+        if (!disabledCategories.contains(category.toString())) {
             return true;        
         } else {
             if(log.isTraceEnabled()) {
@@ -407,7 +409,7 @@ public abstract class AbstractAuditLog implements AuditLog {
             return false;
         }
         
-        if (category.isEnabled()) {
+        if (!disabledCategories.contains(category.toString())) {
             return true;        
         } else {
             if(log.isTraceEnabled()) {

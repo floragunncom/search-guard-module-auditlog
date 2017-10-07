@@ -103,19 +103,18 @@ class WebhookAuditLog extends AuditLogSink {
 			log.debug("Message is null");
 			return;
 		}
-		if (msg.getCategory().isEnabled()) {
-			switch (webhookFormat.method) {
-			case POST:
-				post(msg);
-				break;
-			case GET:
-				get(msg);
-				break;
-			default:
-				log.error("Http Method '{}' defined in WebhookFormat '{}' not implemented yet", webhookFormat.method.name(),
-						webhookFormat.name());
-				return;
-			}
+
+		switch (webhookFormat.method) {
+		case POST:
+			post(msg);
+			break;
+		case GET:
+			get(msg);
+			break;
+		default:
+			log.error("Http Method '{}' defined in WebhookFormat '{}' not implemented yet", webhookFormat.method.name(),
+					webhookFormat.name());
+			return;
 		}
 	}
 
