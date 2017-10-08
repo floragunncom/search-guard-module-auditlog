@@ -37,9 +37,9 @@ public final class Log4JAuditLog extends AuditLogSink {
         logLevel = Level.toLevel(settings.get("searchguard.audit.config.log4j.level","INFO").toUpperCase());
     }
 
-    public boolean isHandlingBackpressure() {
+    /*public boolean isHandlingBackpressure() {
         return true;
-    }
+    }*/
 
     @Override
     public void store(final AuditMessage msg) {
