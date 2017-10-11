@@ -45,7 +45,7 @@ public class HttpClientTest extends SingleClusterTest {
         }
         
         try(final HttpClient httpClient = HttpClient.builder("unknownhost:6654", clusterInfo.httpHost+":"+clusterInfo.httpPort)
-                .enableSsl(FileHelper.getAbsoluteFilePathFromClassPath("truststore.jks"),"changeit", false)
+                .enableSsl(FileHelper.getKeystoreFromClassPath("truststore.jks","changeit"), false)
                 .setBasicCredentials("admin", "admin").build()) {
             Assert.assertFalse(httpClient.index("{\"a\":5}", "index", "type", false));
             Assert.assertFalse(httpClient.index("{\"a\":5}", "index", "type", true));
@@ -75,7 +75,7 @@ public class HttpClientTest extends SingleClusterTest {
         setup(Settings.EMPTY, new DynamicSgConfig(), settings);
 
         try(final HttpClient httpClient = HttpClient.builder(clusterInfo.httpHost+":"+clusterInfo.httpPort)
-                .enableSsl(FileHelper.getAbsoluteFilePathFromClassPath("truststore.jks"),"changeit", false)
+                .enableSsl(FileHelper.getKeystoreFromClassPath("truststore.jks","changeit"), false)
                 .setBasicCredentials("admin", "admin").build()) {
             Assert.assertTrue(httpClient.index("{\"a\":5}", "index", "type", false));
             Assert.assertTrue(httpClient.index("{\"a\":5}", "index", "type", true));
@@ -106,8 +106,8 @@ public class HttpClientTest extends SingleClusterTest {
         setup(Settings.EMPTY, new DynamicSgConfig(), settings);
 
         try(final HttpClient httpClient = HttpClient.builder(clusterInfo.httpHost+":"+clusterInfo.httpPort)
-                .enableSsl(FileHelper.getAbsoluteFilePathFromClassPath("truststore.jks"),"changeit", false)
-                .setPkiCredentials(FileHelper.getAbsoluteFilePathFromClassPath("spock-keystore.jks"), "changeit")
+                .enableSsl(FileHelper.getKeystoreFromClassPath("truststore.jks","changeit"), false)
+                .setPkiCredentials(FileHelper.getKeystoreFromClassPath("spock-keystore.jks", "changeit"), "changeit".toCharArray(), null)
                 .build()) {
             Assert.assertTrue(httpClient.index("{\"a\":5}", "index", "type", false));
             Assert.assertTrue(httpClient.index("{\"a\":5}", "index", "type", true));

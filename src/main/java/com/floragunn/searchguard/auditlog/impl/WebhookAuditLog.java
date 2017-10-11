@@ -19,16 +19,16 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
+import java.security.KeyStore;
 import java.security.cert.X509Certificate;
-
-import javax.net.ssl.HostnameVerifier;
-import javax.net.ssl.SSLSession;
 
 import org.apache.http.HttpStatus;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
+import org.apache.http.conn.ssl.DefaultHostnameVerifier;
+import org.apache.http.conn.ssl.NoopHostnameVerifier;
 import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
 import org.apache.http.entity.ContentType;
 import org.apache.http.entity.StringEntity;
@@ -42,25 +42,49 @@ import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.threadpool.ThreadPool;
 
+import com.floragunn.searchguard.ssl.util.SSLConfigConstants;
+import com.floragunn.searchguard.support.ConfigConstants;
+import com.floragunn.searchguard.support.PemKeyReader;
+
 class WebhookAuditLog extends AuditLogSink {
 	
 	/* HttpClient is thread safe */
-	//private final static CloseableHttpClient httpClient = HttpClients.createDefault();
 	private final CloseableHttpClient httpClient;
 	
 	String webhookUrl = null;
 	WebhookFormat webhookFormat = null;
+	final boolean verifySSL;
+	final KeyStore effectiveTruststore;
 
 	WebhookAuditLog(final Settings settings, final Path configPath, ThreadPool threadPool,
-	        final IndexNameExpressionResolver resolver, final ClusterService clusterService) {
+	        final IndexNameExpressionResolver resolver, final ClusterService clusterService) throws Exception {
 		super(settings, threadPool, resolver, clusterService);
-		Settings auditSettings = settings.getAsSettings("searchguard.audit.config");
 		
-		String webhookUrl = auditSettings.get("webhook.url");
-		String format = auditSettings.get("webhook.format");
+		final boolean pem = settings.get(ConfigConstants.SEARCHGUARD_AUDIT_WEBHOOK_PEMTRUSTEDCAS_FILEPATH, null) != null
+                || settings.get(ConfigConstants.SEARCHGUARD_AUDIT_WEBHOOK_PEMTRUSTEDCAS_CONTENT, null) != null;
+
+		if(pem) {
+		    X509Certificate[] trustCertificates = PemKeyReader.loadCertificatesFromStream(PemKeyReader.resolveStream(ConfigConstants.SEARCHGUARD_AUDIT_SSL_PEMTRUSTEDCAS_CONTENT, settings));
+            
+            if(trustCertificates == null) {
+                trustCertificates = PemKeyReader.loadCertificatesFromFile(PemKeyReader.resolve(ConfigConstants.SEARCHGUARD_AUDIT_SSL_PEMTRUSTEDCAS_FILEPATH, settings, configPath, true));
+            }
+            
+            effectiveTruststore = PemKeyReader.toTruststore("alw", trustCertificates);
+
+    
+		} else {
+		    effectiveTruststore = PemKeyReader.loadKeyStore(PemKeyReader.resolve(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_TRUSTSTORE_FILEPATH, settings, configPath, true)
+                    , settings.get(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_TRUSTSTORE_PASSWORD, SSLConfigConstants.DEFAULT_STORE_PASSWORD)
+                    , settings.get(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_TRUSTSTORE_TYPE));
+		}
 		
-		Boolean verifySSL = auditSettings.getAsBoolean("webhook.ssl.verify", Boolean.TRUE);
-		httpClient = getInsecureHttpClient(verifySSL);
+		
+		final String webhookUrl = settings.get(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_WEBHOOK_URL);
+		final String format = settings.get(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_WEBHOOK_FORMAT);
+		
+		verifySSL = settings.getAsBoolean(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_WEBHOOK_SSL_VERIFY, true);
+		httpClient = getHttpClient();
 		
 		if(httpClient == null) {
 			log.error("Could not create HttpClient, audit log not available.");
@@ -119,12 +143,10 @@ class WebhookAuditLog extends AuditLogSink {
 	}
 
     @Override
-    public void close() throws IOException {
-                
+    public void close() throws IOException { 
         if(httpClient != null) {
         	httpClient.close();
         }
-        
     }
 
 	
@@ -276,7 +298,7 @@ class WebhookAuditLog extends AuditLogSink {
 		}
 	}
 
-	CloseableHttpClient getInsecureHttpClient(Boolean verifySsl)  {
+	CloseableHttpClient getHttpClient()  {
 	    
         // TODO: set a timeout until we have a proper way to deal with back pressure
         int timeout = 5;
@@ -285,35 +307,46 @@ class WebhookAuditLog extends AuditLogSink {
           .setConnectTimeout(timeout * 1000)
           .setConnectionRequestTimeout(timeout * 1000)
           .setSocketTimeout(timeout * 1000).build();
-
         
-		// default client verifies SSL certificates
-		if(verifySsl) {
-			return HttpClients.custom().setDefaultRequestConfig(config).build();
-		}
+        final TrustStrategy trustAllStrategy = new TrustStrategy() {
+            @Override
+            public boolean isTrusted(X509Certificate[] chain, String authType) {
+                return true;
+            }
+        };
 
-		// We disable all ssl checks. Not recommended for production, and will likely
-		// become more configurable in subsequent releases.
-	    TrustStrategy trustStrategy = new TrustStrategy() {
-	        @Override
-	        public boolean isTrusted(X509Certificate[] chain, String authType) {
-	            return true;
-	        }
-	    };
-
-	    HostnameVerifier hostnameVerifier = new HostnameVerifier() {
-	        @Override
-	        public boolean verify(String hostname, SSLSession session) {
-	            return true;
-	        }
-	    };
-	    
 	    try {
+	        
+	        if(!verifySSL) {
+	            return HttpClients.custom()
+	                    .setSSLSocketFactory(
+	                            new SSLConnectionSocketFactory(
+	                                    new SSLContextBuilder()
+	                                    .loadTrustMaterial(trustAllStrategy)
+	                                    .build(),
+	                                    NoopHostnameVerifier.INSTANCE))
+	                    .setDefaultRequestConfig(config)
+	                    .build();   
+	        }
+	        
+	        if(effectiveTruststore == null) {
+	            return HttpClients.custom()
+                        .setDefaultRequestConfig(config)
+                        .build();  
+	        }
+
 		    return HttpClients.custom()
-		            .setSSLSocketFactory(new SSLConnectionSocketFactory(new SSLContextBuilder().loadTrustMaterial(trustStrategy).build(),hostnameVerifier))
+		            .setSSLSocketFactory(
+		                    new SSLConnectionSocketFactory(
+		                            new SSLContextBuilder()
+		                            .loadTrustMaterial(effectiveTruststore, null)
+		                            .build(),
+		                            new DefaultHostnameVerifier()))
 		            .setDefaultRequestConfig(config)
-		            .build();	    	
-	    }catch(Exception ex) {
+		            .build();	
+		    
+		    
+	    } catch(Exception ex) {
 	    	log.error("Could not create HTTPClient due to {}, audit log not available.", ex.getMessage());
 	    	return null;
 	    }

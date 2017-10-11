@@ -15,10 +15,8 @@
 package com.floragunn.searchguard.httpclient;
 
 import java.io.Closeable;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.security.KeyManagementException;
 import java.security.KeyStore;
@@ -27,6 +25,7 @@ import java.security.NoSuchAlgorithmException;
 import java.security.UnrecoverableKeyException;
 import java.security.cert.CertificateException;
 import java.util.Arrays;
+import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
@@ -42,6 +41,8 @@ import org.apache.http.conn.ssl.NoopHostnameVerifier;
 import org.apache.http.impl.nio.client.HttpAsyncClientBuilder;
 import org.apache.http.message.BasicHeader;
 import org.apache.http.nio.conn.ssl.SSLIOSessionStrategy;
+import org.apache.http.ssl.PrivateKeyDetails;
+import org.apache.http.ssl.PrivateKeyStrategy;
 import org.apache.http.ssl.SSLContextBuilder;
 import org.apache.http.ssl.SSLContexts;
 import org.apache.logging.log4j.LogManager;
@@ -60,12 +61,15 @@ public class HttpClient implements Closeable {
 
     public static class HttpClientBuilder {
 
-        private File trustStore;
-        private String truststorePassword;
+        private KeyStore trustStore;
         private String basicCredentials;
-        private File keystore;
-        private String keystorePassword;
+        private KeyStore keystore;
+        private String keystoreAlias;
+        private char[] keyPassword;
         private boolean verifyHostnames;
+        private String[] supportedProtocols = new String[] { "TLSv1.1", "TLSv1.2" };
+        private String[] supportedCipherSuites = null;
+        
         private final String[] servers;
         private boolean ssl;
 
@@ -77,10 +81,9 @@ public class HttpClient implements Closeable {
             }
         }
 
-        public HttpClientBuilder enableSsl(final File trustStore, final String truststorePassword, final boolean verifyHostnames) {
+        public HttpClientBuilder enableSsl(final KeyStore trustStore, final boolean verifyHostnames) {
             this.ssl = true;
             this.trustStore = Objects.requireNonNull(trustStore);
-            this.truststorePassword = truststorePassword;
             this.verifyHostnames = verifyHostnames;
             return this;
         }
@@ -90,15 +93,26 @@ public class HttpClient implements Closeable {
             return this;
         }
 
-        public HttpClientBuilder setPkiCredentials(final File keystore, final String keystorePassword) {
+        public HttpClientBuilder setPkiCredentials(final KeyStore keystore, final char[] keyPassword, final String keystoreAlias) {
             this.keystore = Objects.requireNonNull(keystore);
-            this.keystorePassword = keystorePassword;
+            this.keyPassword = keyPassword;
+            this.keystoreAlias = keystoreAlias;
+            return this;
+        }
+        
+        public HttpClientBuilder setSupportedProtocols(String[] protocols) {
+            this.supportedProtocols = protocols;
+            return this;
+        }
+        
+        public HttpClientBuilder setSupportedCipherSuites(String[] cipherSuites) {
+            this.supportedCipherSuites = cipherSuites;
             return this;
         }
 
         public HttpClient build() throws Exception {
-            return new HttpClient(trustStore, truststorePassword, basicCredentials, keystore, keystorePassword, verifyHostnames, ssl,
-                    servers);
+            return new HttpClient(trustStore, basicCredentials, keystore, keyPassword, keystoreAlias, verifyHostnames, ssl,
+                    supportedProtocols, supportedCipherSuites, servers);
         }
         
         private static String encodeBasicHeader(final String username, final String password) {
@@ -111,28 +125,32 @@ public class HttpClient implements Closeable {
         return new HttpClientBuilder(servers);
     }
 
-    private final File trustStore;
-    private final String truststorePassword;
+    private final KeyStore trustStore;
     private final Logger log = LogManager.getLogger(this.getClass());
     private RestHighLevelClient rclient;
     private String basicCredentials;
-    private File keystore;
-    private String keystorePassword;
+    private KeyStore keystore;
+    private String keystoreAlias;
+    private char[] keyPassword;
     private boolean verifyHostnames;
     private boolean ssl;
+    private String[] supportedProtocols;
+    private String[] supportedCipherSuites;
 
-    private HttpClient(final File trustStore, final String truststorePassword, final String basicCredentials, final File keystore,
-            final String keystorePassword, final boolean verifyHostnames, final boolean ssl, final String... servers)
+    private HttpClient(final KeyStore trustStore, final String basicCredentials, final KeyStore keystore,
+            final char[] keyPassword, final String keystoreAlias, final boolean verifyHostnames, final boolean ssl, String[] supportedProtocols, String[] supportedCipherSuites, final String... servers)
             throws UnrecoverableKeyException, KeyManagementException, NoSuchAlgorithmException, KeyStoreException, CertificateException,
-            FileNotFoundException, IOException {
+            IOException {
         super();
         this.trustStore = trustStore;
-        this.truststorePassword = truststorePassword;
         this.basicCredentials = basicCredentials;
         this.keystore = keystore;
-        this.keystorePassword = keystorePassword;
+        this.keyPassword = keyPassword;
         this.verifyHostnames = verifyHostnames;
         this.ssl = ssl;
+        this.supportedProtocols = supportedProtocols;
+        this.supportedCipherSuites = supportedCipherSuites;
+        this.keystoreAlias = keystoreAlias;
 
         HttpHost[] hosts = Arrays.stream(servers)
                 .map(s->s.split(":"))
@@ -187,8 +205,8 @@ public class HttpClient implements Closeable {
             }
     }
 
-    private final HttpAsyncClientBuilder asyncClientBuilder(HttpAsyncClientBuilder httpClientBuilder) throws NoSuchAlgorithmException, KeyStoreException, CertificateException,
-    FileNotFoundException, IOException, UnrecoverableKeyException, KeyManagementException {
+    private final HttpAsyncClientBuilder asyncClientBuilder(HttpAsyncClientBuilder httpClientBuilder) 
+            throws NoSuchAlgorithmException, KeyStoreException, UnrecoverableKeyException, KeyManagementException {
 
         // basic auth
         // pki auth
@@ -202,23 +220,27 @@ public class HttpClient implements Closeable {
             }
 
             if (trustStore != null) {
-                final KeyStore myTrustStore = KeyStore.getInstance(trustStore.getName().endsWith("jks") ? "JKS" : "PKCS12");
-                myTrustStore.load(new FileInputStream(trustStore),
-                        truststorePassword == null || truststorePassword.isEmpty() ? null : truststorePassword.toCharArray());
-                sslContextBuilder.loadTrustMaterial(myTrustStore, null);
+                sslContextBuilder.loadTrustMaterial(trustStore, null);
             }
 
             if (keystore != null) {
-                final KeyStore keyStore = KeyStore.getInstance(keystore.getName().endsWith("jks") ? "JKS" : "PKCS12");
-                keyStore.load(new FileInputStream(keystore), keystorePassword == null || keystorePassword.isEmpty() ? null
-                        : keystorePassword.toCharArray());
-                sslContextBuilder.loadKeyMaterial(keyStore, keystorePassword == null || keystorePassword.isEmpty() ? null
-                        : keystorePassword.toCharArray());
+                sslContextBuilder.loadKeyMaterial(keystore, keyPassword, new PrivateKeyStrategy() {
+                    
+                    @Override
+                    public String chooseAlias(Map<String, PrivateKeyDetails> aliases, Socket socket) {
+                        if(aliases == null || aliases.isEmpty()) {
+                            return keystoreAlias;
+                        }
+                        
+                        if(keystoreAlias == null || keystoreAlias.isEmpty()) {
+                            return aliases.keySet().iterator().next();
+                        }
+                        
+                        return keystoreAlias;                    }
+                });
             }
 
             final HostnameVerifier hnv = verifyHostnames?new DefaultHostnameVerifier():NoopHostnameVerifier.INSTANCE;
-            String[] supportedProtocols = new String[] { "TLSv1.1", "TLSv1.2" };
-            String[] supportedCipherSuites = null;
             
             final SSLContext sslContext = sslContextBuilder.build();
             httpClientBuilder.setSSLStrategy(new SSLIOSessionStrategy(

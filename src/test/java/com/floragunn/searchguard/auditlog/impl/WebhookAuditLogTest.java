@@ -42,6 +42,7 @@ import org.junit.Test;
 
 import com.floragunn.searchguard.auditlog.impl.AuditMessage.Category;
 import com.floragunn.searchguard.auditlog.impl.WebhookAuditLog.WebhookFormat;
+import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.test.helper.file.FileHelper;
 
 public class WebhookAuditLogTest {
@@ -51,7 +52,11 @@ public class WebhookAuditLogTest {
 		AuditMessage msg = MockAuditMessageFactory.validAuditMessage();
 
 		// provide no settings, audit log not available
-		Settings settings = Settings.builder().build();
+		Settings settings = Settings.builder()
+		        .put("path.home", ".")
+		        .put("searchguard.ssl.transport.truststore_filepath",
+                        FileHelper.getAbsoluteFilePathFromClassPath("truststore.jks"))
+		        .build();
 		MockWebhookAuditLog auditlog = new MockWebhookAuditLog(settings);
 		auditlog.store(msg);
 		Assert.assertEquals(null, auditlog.webhookFormat);
@@ -68,6 +73,10 @@ public class WebhookAuditLogTest {
 		// provide no format, defaults to TEXT
 		Settings settings = Settings.builder()
 				.put("searchguard.audit.config.webhook.url", url)
+				.put("path.home", ".")
+                .put("searchguard.ssl.transport.truststore_filepath",
+                        FileHelper.getAbsoluteFilePathFromClassPath("truststore.jks"))
+                .put("searchguard.ssl.transport.enforce_hostname_verification", false)
 				.build();
 		MockWebhookAuditLog auditlog = new MockWebhookAuditLog(settings);
 		auditlog.store(msg);
@@ -79,6 +88,9 @@ public class WebhookAuditLogTest {
 		settings = Settings.builder()
 				.put("searchguard.audit.config.webhook.url", url)
 				.put("searchguard.audit.config.webhook.format", "idonotexist")
+				.put("searchguard.ssl.transport.truststore_filepath",
+                        FileHelper.getAbsoluteFilePathFromClassPath("truststore.jks"))
+				.put("path.home", ".")
 				.build();
 		auditlog = new MockWebhookAuditLog(settings);
 		auditlog.store(msg);
@@ -91,6 +103,9 @@ public class WebhookAuditLogTest {
 		settings = Settings.builder()
 				.put("searchguard.audit.config.webhook.url", url)
 				.put("searchguard.audit.config.webhook.format", "text")
+                .put("searchguard.ssl.transport.truststore_filepath",
+                        FileHelper.getAbsoluteFilePathFromClassPath("truststore.jks"))				
+				.put("path.home", ".")
 				.build();
 		auditlog = new MockWebhookAuditLog(settings);
 		auditlog.store(msg);
@@ -104,6 +119,9 @@ public class WebhookAuditLogTest {
 		settings = Settings.builder()
 				.put("searchguard.audit.config.webhook.url", url)
 				.put("searchguard.audit.config.webhook.format", "json")
+                .put("searchguard.ssl.transport.truststore_filepath",
+                        FileHelper.getAbsoluteFilePathFromClassPath("truststore.jks"))
+                .put("path.home", ".")
 				.build();
 		auditlog = new MockWebhookAuditLog(settings);
 		auditlog.store(msg);
@@ -118,6 +136,9 @@ public class WebhookAuditLogTest {
 		settings = Settings.builder()
 				.put("searchguard.audit.config.webhook.url", url)
 				.put("searchguard.audit.config.webhook.format", "slack")
+                .put("searchguard.ssl.transport.truststore_filepath",
+                        FileHelper.getAbsoluteFilePathFromClassPath("truststore.jks"))				
+				.put("path.home", ".")
 				.build();
 		auditlog = new MockWebhookAuditLog(settings);
 		auditlog.store(msg);
@@ -137,6 +158,9 @@ public class WebhookAuditLogTest {
 		final Settings settings = Settings.builder()
 				.put("searchguard.audit.config.webhook.url", url)
 				.put("searchguard.audit.config.webhook.format", "slack")
+                .put("searchguard.ssl.transport.truststore_filepath",
+                        FileHelper.getAbsoluteFilePathFromClassPath("truststore.jks"))
+				.put("path.home", ".")
 				.build();
 
 		MockWebhookAuditLog auditlog = new MockWebhookAuditLog(settings);
@@ -154,6 +178,9 @@ public class WebhookAuditLogTest {
 		Settings settings = Settings.builder()
 				.put("searchguard.audit.config.webhook.url", url)
 				.put("searchguard.audit.config.webhook.format", "slack")
+                .put("searchguard.ssl.transport.truststore_filepath",
+                        FileHelper.getAbsoluteFilePathFromClassPath("truststore.jks"))
+				.put("path.home", ".")
 				.build();
 
 		// just make sure no exception is thrown
@@ -180,6 +207,9 @@ public class WebhookAuditLogTest {
 		Settings settings = Settings.builder()
 				.put("searchguard.audit.config.webhook.url", url)
 				.put("searchguard.audit.config.webhook.format", "slack")
+				.put("path.home", ".")
+                .put("searchguard.ssl.transport.truststore_filepath",
+                        FileHelper.getAbsoluteFilePathFromClassPath("truststore.jks"))
 				.build();
 
 		WebhookAuditLog auditlog = new WebhookAuditLog(settings, null, null, null, null);
@@ -194,6 +224,9 @@ public class WebhookAuditLogTest {
 		settings = Settings.builder()
 				.put("searchguard.audit.config.webhook.url", url)
 				.put("searchguard.audit.config.webhook.format", "texT")
+                .put("searchguard.ssl.transport.truststore_filepath",
+                        FileHelper.getAbsoluteFilePathFromClassPath("truststore.jks"))
+				.put("path.home", ".")
 				.build();
 
 		auditlog = new WebhookAuditLog(settings, null, null, null, null);
@@ -208,6 +241,9 @@ public class WebhookAuditLogTest {
 		settings = Settings.builder()
 				.put("searchguard.audit.config.webhook.url", url)
 				.put("searchguard.audit.config.webhook.format", "JSon")
+                .put("searchguard.ssl.transport.truststore_filepath",
+                        FileHelper.getAbsoluteFilePathFromClassPath("truststore.jks"))
+				.put("path.home", ".")
 				.build();
 
 		auditlog = new WebhookAuditLog(settings, null, null, null, null);
@@ -221,6 +257,9 @@ public class WebhookAuditLogTest {
 		settings = Settings.builder()
 				.put("searchguard.audit.config.webhook.url", url)
 				.put("searchguard.audit.config.webhook.format", "URL_PARAMETER_POST")
+				.put("path.home", ".")
+                .put("searchguard.ssl.transport.truststore_filepath",
+                        FileHelper.getAbsoluteFilePathFromClassPath("truststore.jks"))
 				.build();
 
 		auditlog = new WebhookAuditLog(settings, null, null, null, null);
@@ -234,6 +273,9 @@ public class WebhookAuditLogTest {
 		settings = Settings.builder()
 				.put("searchguard.audit.config.webhook.url", url)
 				.put("searchguard.audit.config.webhook.format", "URL_PARAMETER_GET")
+				.put("path.home", ".")
+                .put("searchguard.ssl.transport.truststore_filepath",
+                        FileHelper.getAbsoluteFilePathFromClassPath("truststore.jks"))
 				.build();
 
 		auditlog = new WebhookAuditLog(settings, null, null, null, null);
@@ -263,6 +305,9 @@ public class WebhookAuditLogTest {
 		Settings settings = Settings.builder()
 				.put("searchguard.audit.config.webhook.url", url)
 				.put("searchguard.audit.config.webhook.format", "slack")
+				.put("path.home", ".")
+                .put("searchguard.ssl.transport.truststore_filepath",
+                        FileHelper.getAbsoluteFilePathFromClassPath("truststore.jks"))
 				.build();
 
 		WebhookAuditLog auditlog = new WebhookAuditLog(settings, null, null, null, null);
@@ -294,14 +339,17 @@ public class WebhookAuditLogTest {
 		Settings settings = Settings.builder()
 				.put("searchguard.audit.config.webhook.url", url)
 				.put("searchguard.audit.config.webhook.format", "slack")
+				.put("path.home", ".")
+                .put("searchguard.ssl.transport.truststore_filepath",
+                        FileHelper.getAbsoluteFilePathFromClassPath("truststore_fail.jks"))
 				.build();
 
 		WebhookAuditLog auditlog = new WebhookAuditLog(settings, null, null, null, null);
 		AuditMessage msg = MockAuditMessageFactory.validAuditMessage();
 		auditlog.store(msg);
-		Assert.assertTrue(handler.method == null);
-		Assert.assertTrue(handler.body == null);
-		Assert.assertTrue(handler.uri == null);
+		Assert.assertTrue(handler.method, handler.method == null);
+		Assert.assertTrue(handler.body, handler.body == null);
+		Assert.assertTrue(handler.uri, handler.uri == null);
 
 		// wrong key for webhook.ssl.verify
 		handler.reset();
@@ -309,6 +357,9 @@ public class WebhookAuditLogTest {
 				.put("searchguard.audit.config.webhook.url", url)
 				.put("searchguard.audit.config.webhook.format", "slack")
 				.put("searchguard.audit.config.webhook.ssl.verify", "foobar")
+				.put("path.home", ".")
+                .put("searchguard.ssl.transport.truststore_filepath",
+                        FileHelper.getAbsoluteFilePathFromClassPath("truststore.jks"))
 				.build();
 		try {
             auditlog = new WebhookAuditLog(settings, null, null, null, null);
@@ -322,6 +373,9 @@ public class WebhookAuditLogTest {
 				.put("searchguard.audit.config.webhook.url", url)
 				.put("searchguard.audit.config.webhook.format", "jSoN")
 				.put("searchguard.audit.config.webhook.ssl.verify", false)
+				.put("path.home", ".")
+                .put("searchguard.ssl.transport.truststore_filepath",
+                        FileHelper.getAbsoluteFilePathFromClassPath("truststore.jks"))
 				.build();
 		auditlog = new WebhookAuditLog(settings, null, null, null, null);
 		auditlog.store(msg);
