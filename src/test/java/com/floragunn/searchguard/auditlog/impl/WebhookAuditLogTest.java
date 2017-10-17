@@ -14,9 +14,6 @@
 
 package com.floragunn.searchguard.auditlog.impl;
 
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
-
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -33,16 +30,12 @@ import javax.net.ssl.TrustManagerFactory;
 import org.apache.http.entity.ContentType;
 import org.apache.http.impl.bootstrap.HttpServer;
 import org.apache.http.impl.bootstrap.ServerBootstrap;
-import org.elasticsearch.cluster.node.DiscoveryNode;
-import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.settings.Settings;
 import org.junit.Assert;
-import org.junit.Before;
 import org.junit.Test;
 
 import com.floragunn.searchguard.auditlog.impl.AuditMessage.Category;
 import com.floragunn.searchguard.auditlog.impl.WebhookAuditLog.WebhookFormat;
-import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.test.helper.file.FileHelper;
 
 public class WebhookAuditLogTest {
@@ -386,6 +379,69 @@ public class WebhookAuditLogTest {
 				
 		server.shutdown(3l, TimeUnit.SECONDS);
 	}
+	
+	@Test
+    public void httpsTestPem() throws Exception {
+
+        TestHttpHandler handler = new TestHttpHandler();
+
+        HttpServer server = ServerBootstrap.bootstrap()
+                .setListenerPort(8082)
+                .setServerInfo("Test/1.1")
+                .setSslContext(createSSLContext())
+                .registerHandler("*", handler)
+                .create();
+
+        server.start();
+        AuditMessage msg = MockAuditMessageFactory.validAuditMessage();
+
+        String url = "https://localhost:8082/endpoint";
+        
+        // try with ssl verification on, must fail
+        Settings settings = Settings.builder()
+                .put("searchguard.audit.config.webhook.url", url)
+                .put("searchguard.audit.config.webhook.format", "slack")
+                .put("path.home", ".")
+                .put("searchguard.audit.config.webhook.ssl.pemtrustedcas_filepath",
+                        FileHelper.getAbsoluteFilePathFromClassPath("chain-ca.pem"))
+                .build();
+
+        WebhookAuditLog auditlog = new WebhookAuditLog(settings, null, null, null, null);
+        auditlog.store(msg);
+        Assert.assertTrue(handler.method.equals("POST"));
+        Assert.assertTrue(handler.body != null);
+        Assert.assertTrue(handler.body.contains("{"));
+        assertStringContainsAllKeysAndValues(handler.body);
+
+        // disable ssl verification, call must succeed now
+        handler.reset();
+        settings = Settings.builder()
+                .put("searchguard.audit.config.webhook.url", url)
+                .put("searchguard.audit.config.webhook.format", "jSoN")
+                .put("searchguard.audit.config.webhook.ssl.verify", false)
+                .put("path.home", ".")
+                .build();
+        auditlog = new WebhookAuditLog(settings, null, null, null, null);
+        auditlog.store(msg);
+        Assert.assertTrue(handler.method.equals("POST"));
+        Assert.assertTrue(handler.body != null);
+        Assert.assertTrue(handler.body.contains("{"));
+        assertStringContainsAllKeysAndValues(handler.body);
+        
+        // disable ssl verification, call must succeed now
+        handler.reset();
+        settings = Settings.builder()
+                .put("searchguard.audit.config.webhook.url", url)
+                .put("searchguard.audit.config.webhook.format", "jSoN")
+                .put("searchguard.audit.config.webhook.ssl.verify", true)
+                .put("path.home", ".")
+                .build();
+        auditlog = new WebhookAuditLog(settings, null, null, null, null);
+        auditlog.store(msg);
+        Assert.assertNull(handler.method);
+                
+        server.shutdown(3l, TimeUnit.SECONDS);
+    }
 	
 	// for TLS support on our in-memory server
 	private SSLContext createSSLContext() {

@@ -24,15 +24,6 @@ import com.floragunn.searchguard.test.helper.file.FileHelper;
 import com.floragunn.searchguard.test.helper.rest.RestHelper.HttpResponse;
 
 public class SSLAuditlogTest extends AbstractAuditlogiUnitTest {
-
-    /*
-     * 
-     *     pem tests for https and webhook
-    audit_trace_resolved_indices leer bei aliasen
-    add auditlog log role (or action group) in default yml files
-    search/scroll requests
-     * 
-     */
     
     @Test
     public void testExternalPemUserPass() throws Exception {
