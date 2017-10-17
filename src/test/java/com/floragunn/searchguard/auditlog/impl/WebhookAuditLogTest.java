@@ -31,6 +31,7 @@ import org.apache.http.entity.ContentType;
 import org.apache.http.impl.bootstrap.HttpServer;
 import org.apache.http.impl.bootstrap.ServerBootstrap;
 import org.elasticsearch.common.settings.Settings;
+import org.junit.After;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -39,7 +40,20 @@ import com.floragunn.searchguard.auditlog.impl.WebhookAuditLog.WebhookFormat;
 import com.floragunn.searchguard.test.helper.file.FileHelper;
 
 public class WebhookAuditLogTest {
+    
+    protected HttpServer server = null;
 
+    @After
+    public void tearDown() {
+        if(server != null) {
+            try {
+                server.shutdown(3l, TimeUnit.SECONDS);
+            } catch (Exception e) {
+                //ignore
+            }
+        }
+    }
+    
 	@Test
 	public void invalidConfTest() throws Exception {
 		AuditMessage msg = MockAuditMessageFactory.validAuditMessage();
@@ -186,7 +200,7 @@ public class WebhookAuditLogTest {
 	public void postGetHttpTest() throws Exception {
 		TestHttpHandler handler = new TestHttpHandler();
 
-		HttpServer server = ServerBootstrap.bootstrap()
+		server = ServerBootstrap.bootstrap()
 				.setListenerPort(8080)
 				.setServerInfo("Test/1.1")
 				.registerHandler("*", handler)
@@ -285,7 +299,7 @@ public class WebhookAuditLogTest {
 
 		TestHttpHandler handler = new TestHttpHandler();
 
-		HttpServer server = ServerBootstrap.bootstrap()
+		server = ServerBootstrap.bootstrap()
 				.setListenerPort(8081)
 				.setServerInfo("Test/1.1")
 				.registerHandler("*", handler)
@@ -317,7 +331,7 @@ public class WebhookAuditLogTest {
 
 		TestHttpHandler handler = new TestHttpHandler();
 
-		HttpServer server = ServerBootstrap.bootstrap()
+		server = ServerBootstrap.bootstrap()
 				.setListenerPort(8082)
 				.setServerInfo("Test/1.1")
 				.setSslContext(createSSLContext())
@@ -385,7 +399,7 @@ public class WebhookAuditLogTest {
 
         TestHttpHandler handler = new TestHttpHandler();
 
-        HttpServer server = ServerBootstrap.bootstrap()
+        server = ServerBootstrap.bootstrap()
                 .setListenerPort(8082)
                 .setServerInfo("Test/1.1")
                 .setSslContext(createSSLContext())
