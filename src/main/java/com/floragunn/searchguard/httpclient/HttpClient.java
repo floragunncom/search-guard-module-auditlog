@@ -67,7 +67,7 @@ public class HttpClient implements Closeable {
         private String keystoreAlias;
         private char[] keyPassword;
         private boolean verifyHostnames;
-        private String[] supportedProtocols = new String[] { "TLSv1.1", "TLSv1.2" };
+        private String[] supportedProtocols = null;
         private String[] supportedCipherSuites = null;
         
         private final String[] servers;
@@ -192,15 +192,15 @@ public class HttpClient implements Closeable {
     public boolean index(final String content, final String index, final String type, final boolean refresh) {
 
             try {
+
                 final IndexResponse response = rclient.index(new IndexRequest(index, type)
-                              .setRefreshPolicy(RefreshPolicy.IMMEDIATE)
+                              .setRefreshPolicy(refresh?RefreshPolicy.IMMEDIATE:RefreshPolicy.NONE)
                               .source(content, XContentType.JSON));
-                
+
                 return response.getShardInfo().getSuccessful() > 0 && response.getShardInfo().getFailed() == 0;
                 
             } catch (Exception e) {
-                // TODO Auto-generated catch block
-                e.printStackTrace();
+                log.error(e.toString(),e);
                 return false;
             }
     }

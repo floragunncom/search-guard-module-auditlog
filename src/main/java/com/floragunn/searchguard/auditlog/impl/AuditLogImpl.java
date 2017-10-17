@@ -113,7 +113,7 @@ public final class AuditLogImpl extends AbstractAuditLog {
 				try {
 					delegate = new HttpESAuditLog(settings, configPath, threadPool, resolver, clusterService);
 				} catch (Exception e) {
-					log.error("Audit logging unavailable: Unable to setup HttpESAuditLog due to {}", e, e.toString());
+					log.error("Audit logging unavailable: Unable to setup HttpESAuditLog due to {}", e);
 				}
 				break;
 			case "webhook":

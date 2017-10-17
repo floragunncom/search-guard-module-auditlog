@@ -18,6 +18,7 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.security.KeyStore;
 import java.security.PrivateKey;
+import java.security.SecureRandom;
 import java.security.cert.X509Certificate;
 import java.util.Arrays;
 
@@ -43,7 +44,6 @@ public final class HttpESAuditLog extends AuditLogSink {
 	private final String[] servers;
 	private DateTimeFormatter indexPattern;
 	
-    private static final String[] EMPTY_STRING_ARRAY = new String[0];
     static final String PKCS12 = "PKCS12";
 
 	public HttpESAuditLog(final Settings settings, final Path configPath, ThreadPool threadPool,
@@ -88,10 +88,10 @@ public final class HttpESAuditLog extends AuditLogSink {
                 }
                 
                 //for client authentication
-                X509Certificate authenticationCertificate = PemKeyReader.loadCertificateFromStream(PemKeyReader.resolveStream(ConfigConstants.SEARCHGUARD_AUDIT_SSL_PEMCERT_CONTENT, settings));
+                X509Certificate[] authenticationCertificate = PemKeyReader.loadCertificatesFromStream(PemKeyReader.resolveStream(ConfigConstants.SEARCHGUARD_AUDIT_SSL_PEMCERT_CONTENT, settings));
                 
                 if(authenticationCertificate == null) {
-                    authenticationCertificate = PemKeyReader.loadCertificateFromFile(PemKeyReader.resolve(ConfigConstants.SEARCHGUARD_AUDIT_SSL_PEMCERT_FILEPATH, settings, configPath, enableSslClientAuth));
+                    authenticationCertificate = PemKeyReader.loadCertificatesFromFile(PemKeyReader.resolve(ConfigConstants.SEARCHGUARD_AUDIT_SSL_PEMCERT_FILEPATH, settings, configPath, enableSslClientAuth));
                 }
                 
                 PrivateKey authenticationKey = PemKeyReader.loadKeyFromStream(settings.get(ConfigConstants.SEARCHGUARD_AUDIT_SSL_PEMKEY_PASSWORD), PemKeyReader.resolveStream(ConfigConstants.SEARCHGUARD_AUDIT_SSL_PEMKEY_CONTENT, settings));
@@ -99,12 +99,12 @@ public final class HttpESAuditLog extends AuditLogSink {
                 if(authenticationKey == null) {
                     authenticationKey = PemKeyReader.loadKeyFromFile(settings.get(ConfigConstants.SEARCHGUARD_AUDIT_SSL_PEMKEY_PASSWORD), PemKeyReader.resolve(ConfigConstants.SEARCHGUARD_AUDIT_SSL_PEMKEY_FILEPATH, settings, configPath, enableSslClientAuth));    
                 }
-
-                effectiveTruststore = PemKeyReader.toTruststore("al", trustCertificates);
-                effectiveKeystore = PemKeyReader.toKeystore("al", authenticationCertificate, authenticationKey);
-                effectiveKeyPassword = null; //key not encrypted
+          
+                effectiveKeyPassword = PemKeyReader.randomChars(12);
                 effectiveKeyAlias = "al";
-                                
+                effectiveTruststore = PemKeyReader.toTruststore(effectiveKeyAlias, trustCertificates);
+                effectiveKeystore = PemKeyReader.toKeystore(effectiveKeyAlias, effectiveKeyPassword, authenticationCertificate, authenticationKey);
+                
                 if(log.isDebugEnabled()) {
                     log.debug("Use PEM to secure communication with auditlog server (client auth is {})", authenticationKey!=null);
                 }
@@ -136,8 +136,8 @@ public final class HttpESAuditLog extends AuditLogSink {
                 
             }   
 		    
-		    final String[] enabledCipherSuites = settings.getAsArray(ConfigConstants.SEARCHGUARD_AUDIT_SSL_ENABLED_SSL_CIPHERS, EMPTY_STRING_ARRAY);   
-            final String[] enabledProtocols = settings.getAsArray(ConfigConstants.SEARCHGUARD_AUDIT_SSL_ENABLED_SSL_PROTOCOLS, new String[] { "TLSv1.1", "TLSv1.2" });   
+		    final String[] enabledCipherSuites = settings.getAsArray(ConfigConstants.SEARCHGUARD_AUDIT_SSL_ENABLED_SSL_CIPHERS, null);   
+            final String[] enabledProtocols = settings.getAsArray(ConfigConstants.SEARCHGUARD_AUDIT_SSL_ENABLED_SSL_PROTOCOLS, new String[] { "TLSv1.2", "TLSv1.1"});   
             
             builder.setSupportedCipherSuites(enabledCipherSuites);
             builder.setSupportedProtocols(enabledProtocols);

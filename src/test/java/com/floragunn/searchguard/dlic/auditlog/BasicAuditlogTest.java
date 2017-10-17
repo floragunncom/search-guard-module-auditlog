@@ -17,7 +17,14 @@ package com.floragunn.searchguard.dlic.auditlog;
 import org.apache.http.Header;
 import org.apache.http.HttpStatus;
 import org.apache.http.message.BasicHeader;
+import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest;
+import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest.AliasActions;
+import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
+import org.elasticsearch.action.index.IndexRequest;
+import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
+import org.elasticsearch.client.transport.TransportClient;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.xcontent.XContentType;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -289,5 +296,87 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
         rh.keystore = keystore;
 
         Assert.assertTrue(res.getBody().contains("auditlog-20"));
+    }
+    
+    @Test
+    public void testAliases() throws Exception {
+
+        Settings additionalSettings = Settings.builder()
+                .put("searchguard.audit.type", TestAuditlogImpl.class.getName())
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_TRANSPORT, true)
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_RESOLVE_BULK_REQUESTS, true)
+                .put("searchguard.audit.enable_request_details", true)
+                .put("searchguard.audit.threadpool.size", 0)
+                .build();
+        
+        setup(additionalSettings);
+        
+        try (TransportClient tc = getInternalTransportClient()) {                    
+            tc.admin().indices().create(new CreateIndexRequest("copysf")).actionGet();         
+            tc.index(new IndexRequest("vulcangov").type("kolinahr").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();                
+            tc.index(new IndexRequest("starfleet").type("ships").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
+            tc.index(new IndexRequest("starfleet_academy").type("students").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
+            tc.index(new IndexRequest("starfleet_library").type("public").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
+            tc.index(new IndexRequest("klingonempire").type("ships").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
+            tc.index(new IndexRequest("public").type("legends").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
+ 
+            tc.index(new IndexRequest("spock").type("type01").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
+            tc.index(new IndexRequest("kirk").type("type01").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
+            tc.index(new IndexRequest("role01_role02").type("type01").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
+
+            tc.admin().indices().aliases(new IndicesAliasesRequest().addAliasAction(AliasActions.add().indices("starfleet","starfleet_academy","starfleet_library").alias("sf"))).actionGet();
+            tc.admin().indices().aliases(new IndicesAliasesRequest().addAliasAction(AliasActions.add().indices("klingonempire","vulcangov").alias("nonsf"))).actionGet();
+            tc.admin().indices().aliases(new IndicesAliasesRequest().addAliasAction(AliasActions.add().indices("public").alias("unrestricted"))).actionGet();
+        }
+        
+        TestAuditlogImpl.clear();
+        
+        HttpResponse response = rh.executeGetRequest("sf/_search?pretty", encodeBasicHeader("admin", "admin"));
+        Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
+        System.out.println(TestAuditlogImpl.sb.toString());
+        Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("starfleet_academy"));
+        Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("starfleet_library"));
+        Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("starfleet"));
+        Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("sf"));
+        Assert.assertEquals(2, TestAuditlogImpl.messages.size());
+    }
+    
+    @Test
+    public void testScroll() throws Exception {
+
+        Settings additionalSettings = Settings.builder()
+                .put("searchguard.audit.type", TestAuditlogImpl.class.getName())
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_TRANSPORT, true)
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_RESOLVE_BULK_REQUESTS, true)
+                .put("searchguard.audit.enable_request_details", true)
+                .put("searchguard.audit.threadpool.size", 0)
+                .build();
+        
+        setup(additionalSettings);
+        
+        try (TransportClient tc = getInternalTransportClient()) {                    
+            for(int i=0; i<3; i++)
+            tc.index(new IndexRequest("vulcangov").type("kolinahr").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();                
+        }
+        
+        TestAuditlogImpl.clear();
+        
+        HttpResponse res;
+        Assert.assertEquals(HttpStatus.SC_OK, (res=rh.executeGetRequest("vulcangov/_search?scroll=1m&pretty=true", encodeBasicHeader("admin", "admin"))).getStatusCode());
+        int start = res.getBody().indexOf("_scroll_id") + 15;
+        String scrollid = res.getBody().substring(start, res.getBody().indexOf("\"", start+1));
+        Assert.assertEquals(HttpStatus.SC_OK, (res=rh.executePostRequest("/_search/scroll?pretty=true", "{\"scroll_id\" : \""+scrollid+"\"}", encodeBasicHeader("admin", "admin"))).getStatusCode());
+        Assert.assertEquals(4, TestAuditlogImpl.messages.size());
+        
+        Assert.assertEquals(HttpStatus.SC_OK, (res=rh.executeGetRequest("vulcangov/_search?scroll=1m&pretty=true", encodeBasicHeader("admin", "admin"))).getStatusCode());
+        start = res.getBody().indexOf("_scroll_id") + 15;
+        scrollid = res.getBody().substring(start, res.getBody().indexOf("\"", start+1));
+        TestAuditlogImpl.clear();
+        Assert.assertEquals(HttpStatus.SC_FORBIDDEN, (res=rh.executePostRequest("/_search/scroll?pretty=true", "{\"scroll_id\" : \""+scrollid+"\"}", encodeBasicHeader("admin2", "admin"))).getStatusCode());
+        Thread.sleep(1000);
+        System.out.println(TestAuditlogImpl.sb.toString());
+        Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("InternalScrollSearchRequest"));
+        Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("MISSING_PRIVILEGES"));
+        Assert.assertTrue(TestAuditlogImpl.messages.size() > 3);
     }
 }

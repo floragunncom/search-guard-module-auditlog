@@ -14,6 +14,7 @@
 
 package com.floragunn.searchguard.auditlog.impl;
 
+import java.net.InetSocketAddress;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -32,6 +33,7 @@ import org.elasticsearch.transport.TransportRequest;
 
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.auditlog.impl.AuditMessage.Category;
+import com.floragunn.searchguard.support.Base64Helper;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.support.WildcardMatcher;
 import com.floragunn.searchguard.user.User;
@@ -284,16 +286,28 @@ public abstract class AbstractAuditLog implements AuditLog {
     }
 
     private Origin getOrigin() {
-        final String origin = (String) threadPool.getThreadContext().getTransient(ConfigConstants.SG_ORIGIN);
+        String origin = (String) threadPool.getThreadContext().getTransient(ConfigConstants.SG_ORIGIN);
+        
+        if(origin == null && threadPool.getThreadContext().getHeader(ConfigConstants.SG_ORIGIN_HEADER) != null) {
+            origin = (String) threadPool.getThreadContext().getHeader(ConfigConstants.SG_ORIGIN_HEADER);
+        }
+        
         return origin == null?null:Origin.valueOf(origin);
     }
     
     private TransportAddress getRemoteAddress() {
-        return threadPool.getThreadContext().getTransient(ConfigConstants.SG_REMOTE_ADDRESS);
+        TransportAddress address = threadPool.getThreadContext().getTransient(ConfigConstants.SG_REMOTE_ADDRESS);
+        if(address == null && threadPool.getThreadContext().getHeader(ConfigConstants.SG_REMOTE_ADDRESS_HEADER) != null) {
+            address = new TransportAddress((InetSocketAddress) Base64Helper.deserializeObject(threadPool.getThreadContext().getHeader(ConfigConstants.SG_REMOTE_ADDRESS_HEADER)));
+        }
+        return address;
     }
     
     private String getUser() {
-        final User user = threadPool.getThreadContext().getTransient(ConfigConstants.SG_USER);
+        User user = threadPool.getThreadContext().getTransient(ConfigConstants.SG_USER);
+        if(user == null && threadPool.getThreadContext().getHeader(ConfigConstants.SG_USER_HEADER) != null) {
+            user = (User) Base64Helper.deserializeObject(threadPool.getThreadContext().getHeader(ConfigConstants.SG_USER_HEADER));
+        }
         return user==null?null:user.getName();
     }
     
