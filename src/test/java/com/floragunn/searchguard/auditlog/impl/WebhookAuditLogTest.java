@@ -33,6 +33,7 @@ import org.apache.http.impl.bootstrap.ServerBootstrap;
 import org.elasticsearch.common.settings.Settings;
 import org.junit.After;
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.Test;
 
 import com.floragunn.searchguard.auditlog.impl.AuditMessage.Category;
@@ -43,11 +44,12 @@ public class WebhookAuditLogTest {
     
     protected HttpServer server = null;
 
+    @Before
     @After
     public void tearDown() {
         if(server != null) {
             try {
-                server.shutdown(3l, TimeUnit.SECONDS);
+                server.stop();
             } catch (Exception e) {
                 //ignore
             }
@@ -400,7 +402,7 @@ public class WebhookAuditLogTest {
         TestHttpHandler handler = new TestHttpHandler();
 
         server = ServerBootstrap.bootstrap()
-                .setListenerPort(8082)
+                .setListenerPort(8083)
                 .setServerInfo("Test/1.1")
                 .setSslContext(createSSLContext())
                 .registerHandler("*", handler)
@@ -409,7 +411,7 @@ public class WebhookAuditLogTest {
         server.start();
         AuditMessage msg = MockAuditMessageFactory.validAuditMessage();
 
-        String url = "https://localhost:8082/endpoint";
+        String url = "https://localhost:8083/endpoint";
         
         // try with ssl verification on, must fail
         Settings settings = Settings.builder()
