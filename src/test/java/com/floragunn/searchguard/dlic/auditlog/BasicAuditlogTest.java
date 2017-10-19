@@ -380,6 +380,6 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
         System.out.println(TestAuditlogImpl.sb.toString());
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("InternalScrollSearchRequest"));
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("MISSING_PRIVILEGES"));
-        Assert.assertTrue(TestAuditlogImpl.messages.size() > 3);
+        Assert.assertTrue(TestAuditlogImpl.messages.size() > 2);
     }
 }
