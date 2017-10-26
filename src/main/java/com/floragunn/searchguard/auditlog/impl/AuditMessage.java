@@ -81,13 +81,13 @@ public final class AuditMessage {
 
     private static final DateTimeFormatter DEFAULT_FORMAT = DateTimeFormat.forPattern("yyyy-MM-dd'T'HH:mm:ss.SSSZZ");
     private final Map<String, Object> auditInfo = new HashMap<String, Object>(50);
-    private final Category category;
+    private final Category msgCategory;
 
-    public AuditMessage(final Category category, final ClusterService clusterService, final Origin origin) {
-        this.category = Objects.requireNonNull(category);
+    public AuditMessage(final Category msgCategory, final ClusterService clusterService, final Origin origin) {
+        this.msgCategory = Objects.requireNonNull(msgCategory);
         final String currentTime = currentTime();
         auditInfo.put(FORMAT_VERSION, 3);
-        auditInfo.put(CATEGORY, Objects.requireNonNull(category));
+        auditInfo.put(CATEGORY, Objects.requireNonNull(msgCategory));
         auditInfo.put(UTC_TIMESTAMP, currentTime);
         auditInfo.put(NODE_HOST_ADDRESS, Objects.requireNonNull(clusterService).localNode().getHostAddress());
         auditInfo.put(NODE_ID, Objects.requireNonNull(clusterService).localNode().getId());
@@ -249,7 +249,7 @@ public final class AuditMessage {
     }
 
 	public Category getCategory() {
-		return category;
+		return msgCategory;
 	}
 
 	@Override
