@@ -39,6 +39,7 @@ import org.elasticsearch.action.support.IndicesOptions;
 import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.service.ClusterService;
+import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.TransportAddress;
@@ -132,7 +133,7 @@ public final class RequestResolver {
             final List<AuditMessage> messages = new ArrayList<AuditMessage>(innerRequests.length);
             
             for(BulkItemRequest ar: innerRequests) {
-                final DocWriteRequest innerRequest = ar.request();
+                final DocWriteRequest<?> innerRequest = ar.request();
                 final AuditMessage msg = resolveInner(
                         category, 
                         effectiveUser, 
@@ -289,7 +290,7 @@ public final class RequestResolver {
                 }
     
                 if (ur.script() != null) {
-                    msg.addSource(ur.script() == null ? null : XContentHelper.toString(ur.script()));
+                    msg.addSource(ur.script() == null ? null : Strings.toString(ur.script()));
                 }
             }
         } else if (request instanceof GetRequest) {
@@ -319,10 +320,15 @@ public final class RequestResolver {
                              +";transient: "+String.valueOf(transientSettings == null?Collections.EMPTY_MAP:transientSettings.getAsMap()));  
             }
         } else if (request instanceof ReindexRequest) {
-            final ReindexRequest ir = (ReindexRequest) request;
-            final String[] indices = new String[0];//arrayOrEmpty(ir.indices());
+            final IndexRequest ir = ((ReindexRequest) request).getDestination();
+            final String[] indices = arrayOrEmpty(ir.indices());
+            final String type = ir.type();
+            final String id = ir.id();
+            msg.addShardId(ir.shardId());
+            msg.addType(type);
+            msg.addId(id);
             if(withDetails) {
-                addIndicesSourceSafe(msg, indices, resolver, cs, null, settings, false);
+                addIndicesSourceSafe(msg, indices, resolver, cs, ir.source(), settings, true);
             }
         } else if (request instanceof DeleteByQueryRequest) {
             final DeleteByQueryRequest ir = (DeleteByQueryRequest) request;
