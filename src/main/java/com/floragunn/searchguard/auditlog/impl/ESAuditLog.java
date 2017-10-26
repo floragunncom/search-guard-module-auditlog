@@ -90,7 +90,7 @@ public final class ESAuditLog extends AuditLogSink {
                     }
                 });*/
             } catch (final Exception e) {
-                log.error("Unable to index audit log {} due to {}", msg, e);
+                log.error("Unable to index audit log {} due to {}", msg, e.toString(), e);
             }
         }
     }

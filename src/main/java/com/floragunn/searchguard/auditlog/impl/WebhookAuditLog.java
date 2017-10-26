@@ -100,7 +100,7 @@ class WebhookAuditLog extends AuditLogSink {
 				new URL(webhookUrl);
 				this.webhookUrl = webhookUrl;
 			} catch (MalformedURLException ex) {
-				log.error("URL {} is invalid, webhook audit log will not work.", ex, webhookUrl);
+				log.error("URL {} is invalid, webhook audit log will not work.", webhookUrl, ex);
 			}
 		}
 
@@ -111,7 +111,7 @@ class WebhookAuditLog extends AuditLogSink {
 			try {
 				webhookFormat = WebhookFormat.valueOf(format.toUpperCase());
 			} catch (Exception ex) {
-				log.error("Could not find WebhookFormat for type {}, falling back to 'text'", ex, format);
+				log.error("Could not find WebhookFormat for type {}, falling back to 'text'", format, ex);
 				webhookFormat = WebhookFormat.TEXT;
 			}
 		}
@@ -226,7 +226,7 @@ class WebhookAuditLog extends AuditLogSink {
 			}
 			return true;
 		} catch (IOException e) {
-			log.error("Cannot GET to webhook URL '{}'", e, webhookUrl);
+			log.error("Cannot GET to webhook URL '{}'", webhookUrl, e);
 			return false;
 		} finally {
 			try {
@@ -234,7 +234,7 @@ class WebhookAuditLog extends AuditLogSink {
 					serverResponse.close();
 				}
 			} catch (IOException e) {
-				log.error("Cannot close server response '{}'", e);
+				log.error("Cannot close server response, e);
 			}			
 		}
 	}
@@ -285,7 +285,7 @@ class WebhookAuditLog extends AuditLogSink {
 			}
 			return true;
 		} catch (IOException e) {
-			log.error("Cannot POST to webhook URL '{}' due to '{}'", webhookUrl, e.getMessage());
+			log.error("Cannot POST to webhook URL '{}' due to '{}'", webhookUrl, e.getMessage(), e);
 			return false;
 		} finally {
 			try {
@@ -347,7 +347,7 @@ class WebhookAuditLog extends AuditLogSink {
 		    
 		    
 	    } catch(Exception ex) {
-	    	log.error("Could not create HTTPClient due to {}, audit log not available.", ex.getMessage());
+	    	log.error("Could not create HTTPClient due to {}, audit log not available.", ex.getMessage(), ex);
 	    	return null;
 	    }
 	}

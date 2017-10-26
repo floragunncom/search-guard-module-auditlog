@@ -171,7 +171,7 @@ public final class HttpESAuditLog extends AuditLogSink {
 				log.error("Unable to send audit log {} to one of these servers: {}", msg, Arrays.toString(servers));
 			}
 		} catch (Exception e) {
-			log.error("Unable to send audit log {} due to {}", e, msg, e.toString());
+			log.error("Unable to send audit log {} due to", msg, e);
 		}
 	}
 }

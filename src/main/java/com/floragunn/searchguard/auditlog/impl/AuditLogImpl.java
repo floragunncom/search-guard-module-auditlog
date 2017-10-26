@@ -111,14 +111,14 @@ public final class AuditLogImpl extends AbstractAuditLog {
 				try {
 					delegate = new HttpESAuditLog(settings, configPath, threadPool, resolver, clusterService);
 				} catch (Exception e) {
-					log.error("Audit logging unavailable: Unable to setup HttpESAuditLog due to {}", e);
+					log.error("Audit logging unavailable: Unable to setup HttpESAuditLog due to", e);
 				}
 				break;
 			case "webhook":
 				try {
                     delegate = new WebhookAuditLog(settings, configPath, threadPool, resolver, clusterService);
                 } catch (Exception e1) {
-                    log.error("Audit logging unavailable: Unable to setup WebhookAuditLog due to {}", e1, e1.toString());
+                    log.error("Audit logging unavailable: Unable to setup WebhookAuditLog due to", e1);
                 }
 				break;				
 			case "debug":
@@ -248,7 +248,7 @@ public final class AuditLogImpl extends AbstractAuditLog {
                 }
             });                                                      		    		
     	} catch(Exception ex) {
-            log.error("Could not submit audit message {} to thread pool for delegate '{}' due to '{}'", msg, delegate.getClass().getSimpleName(), ex.getMessage());                   		
+            log.error("Could not submit audit message {} to thread pool for delegate '{}' due to '{}'", msg, delegate.getClass().getSimpleName(), ex.getMessage(), ex);                   		
     	}
     }
 }
