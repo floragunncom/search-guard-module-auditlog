@@ -234,7 +234,7 @@ class WebhookAuditLog extends AuditLogSink {
 					serverResponse.close();
 				}
 			} catch (IOException e) {
-				log.error("Cannot close server response, e);
+				log.error("Cannot close server response", e);
 			}			
 		}
 	}
