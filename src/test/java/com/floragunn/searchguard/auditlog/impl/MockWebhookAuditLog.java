@@ -14,8 +14,6 @@
 
 package com.floragunn.searchguard.auditlog.impl;
 
-import java.nio.file.Paths;
-
 import org.elasticsearch.common.settings.Settings;
 
 public class MockWebhookAuditLog extends WebhookAuditLog {

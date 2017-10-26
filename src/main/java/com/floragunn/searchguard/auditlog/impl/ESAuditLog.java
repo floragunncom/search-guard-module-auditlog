@@ -17,7 +17,6 @@ package com.floragunn.searchguard.auditlog.impl;
 import java.io.IOException;
 import java.nio.file.Path;
 
-import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.index.IndexRequestBuilder;
 import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;

@@ -18,9 +18,6 @@ import static org.hamcrest.CoreMatchers.containsString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import java.io.FileDescriptor;
-import java.io.FileOutputStream;
-import java.io.PrintStream;
 import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
@@ -32,10 +29,8 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.settings.Settings.Builder;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.transport.TransportRequest;
-import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import com.floragunn.searchguard.auditlog.AuditLog;

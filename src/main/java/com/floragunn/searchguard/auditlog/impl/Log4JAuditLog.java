@@ -14,7 +14,6 @@
 
 package com.floragunn.searchguard.auditlog.impl;
 
-import java.io.IOException;
 import java.nio.file.Path;
 
 import org.apache.logging.log4j.Level;

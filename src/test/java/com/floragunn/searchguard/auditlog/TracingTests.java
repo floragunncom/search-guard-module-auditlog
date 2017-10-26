@@ -3,8 +3,6 @@ package com.floragunn.searchguard.auditlog;
 import java.lang.Thread.UncaughtExceptionHandler;
 
 import org.apache.http.HttpStatus;
-import org.apache.logging.log4j.Level;
-import org.apache.logging.log4j.LogManager;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest.AliasActions;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
@@ -14,7 +12,6 @@ import org.elasticsearch.client.transport.TransportClient;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.junit.Assert;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import com.floragunn.searchguard.support.ConfigConstants;

@@ -26,8 +26,6 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import org.mockito.Mockito;
-
 import com.floragunn.searchguard.dlic.auditlog.TestAuditlogImpl;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.user.User;
