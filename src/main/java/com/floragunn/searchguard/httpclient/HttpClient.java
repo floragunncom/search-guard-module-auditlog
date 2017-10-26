@@ -179,8 +179,7 @@ public class HttpClient implements Closeable {
                 try {
                     return asyncClientBuilder(httpClientBuilder);
                 } catch (Exception e) {
-                    // TODO Auto-generated catch block
-                    e.printStackTrace();
+                    log.error("Unable to build http client",e);
                     throw new RuntimeException(e);
                 }
             }

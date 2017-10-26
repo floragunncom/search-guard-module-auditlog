@@ -310,14 +310,6 @@ public final class RequestResolver {
             if(withDetails) {
                 addIndicesSourceSafe(msg, indices, resolver, cs, sr.source() == null? null:sr.source().buildAsBytes(), settings, false);
             }
-        } else if (request instanceof UpdateRequest) {
-            final UpdateRequest ur = (UpdateRequest) request;
-            final String[] indices = arrayOrEmpty(ur.indices());
-            final String id = ur.id();
-            msg.addId(id);
-            if(withDetails) {
-                addIndicesSourceSafe(msg, indices, resolver, cs, ur.doc() == null? null: ur.doc().source(), settings, true);
-            }
         } else if (request instanceof ClusterUpdateSettingsRequest) {
             if(withDetails) {
                 final ClusterUpdateSettingsRequest cusr = (ClusterUpdateSettingsRequest) request;
