@@ -18,7 +18,6 @@ import java.io.IOException;
 import java.nio.file.Path;
 
 import org.elasticsearch.action.index.IndexRequestBuilder;
-import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
@@ -74,21 +73,7 @@ public final class ESAuditLog extends AuditLogSink {
                 final IndexRequestBuilder irb = clientProvider.prepareIndex(getExpandedIndexName(indexPattern, index), type).setRefreshPolicy(RefreshPolicy.IMMEDIATE).setSource(msg.getAsMap());
                 threadPool.getThreadContext().putHeader(ConfigConstants.SG_CONF_REQUEST_HEADER, "true");
                 irb.setTimeout(TimeValue.timeValueMinutes(1));
-                IndexResponse res = irb.execute().actionGet();
-                /*irb.execute(new ActionListener<IndexResponse>() {
-    
-                    @Override
-                    public void onResponse(final IndexResponse response) {
-                        if(log.isTraceEnabled()) {
-                            log.trace("audit message {} written to {}/{}", msg,response.getIndex(), response.getType());
-                        }
-                    }
-    
-                    @Override
-                    public void onFailure(final Exception e) {
-                        log.error("Unable to write audit log {} due to {}", msg, e);
-                    }
-                });*/
+                irb.execute().actionGet();
             } catch (final Exception e) {
                 log.error("Unable to index audit log {} due to {}", msg, e.toString(), e);
             }

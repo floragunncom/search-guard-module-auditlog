@@ -165,7 +165,7 @@ public final class RequestResolver {
                     && category != Category.MISSING_PRIVILEGES 
                     && category != Category.SG_INDEX_ATTEMPT) {
                 
-                return Collections.EMPTY_LIST;
+                return Collections.emptyList();
             }
             
             
