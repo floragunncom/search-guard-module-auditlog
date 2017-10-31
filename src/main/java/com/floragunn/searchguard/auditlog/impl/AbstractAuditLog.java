@@ -167,6 +167,25 @@ public abstract class AbstractAuditLog implements AuditLog {
     }
 
     @Override
+    public void logMissingPrivileges(String privilege, String effectiveUser, RestRequest request) {
+        if(!checkFilter(Category.MISSING_PRIVILEGES, effectiveUser, request)) {
+            return;
+        }
+        
+        AuditMessage msg = new AuditMessage(Category.MISSING_PRIVILEGES, clusterService, getOrigin());
+        TransportAddress remoteAddress = getRemoteAddress();
+        msg.addRemoteAddress(remoteAddress);
+        if(withRequestDetails && request.hasContentOrSourceParam()) {
+           msg.addBody(request.contentOrSourceParam());
+        }
+        msg.addPath(request.path());
+        msg.addEffectiveUser(effectiveUser);
+        msg.addRestHeaders(request.getHeaders());
+        msg.addRestParams(request.params());
+        save(msg);
+    }
+
+    @Override
     public void logMissingPrivileges(String privilege, TransportRequest request, Task task) {
         final String action = null;
         
