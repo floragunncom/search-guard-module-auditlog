@@ -276,7 +276,8 @@ public abstract class AbstractAuditLog implements AuditLog {
         }
         
         final TransportAddress remoteAddress = getRemoteAddress();
-        final List<AuditMessage> msgs = RequestResolver.resolve(Category.SSL_EXCEPTION, getOrigin(), action, null, getUser(), false, null, remoteAddress, request, getThreadContextHeaders(), task, resolver, clusterService, settings, withRequestDetails, resolveBulkRequests, t);
+        final List<AuditMessage> msgs = RequestResolver.resolve(Category.SSL_EXCEPTION, getOrigin(), action, null, getUser(), false, null, remoteAddress, request, 
+                getThreadContextHeaders(), task, resolver, clusterService, settings, withRequestDetails, resolveBulkRequests, t);
         
         for(AuditMessage msg: msgs) {
             save(msg);
@@ -293,14 +294,17 @@ public abstract class AbstractAuditLog implements AuditLog {
         AuditMessage msg = new AuditMessage(Category.SSL_EXCEPTION, clusterService, getOrigin());
         TransportAddress remoteAddress = getRemoteAddress();
         msg.addRemoteAddress(remoteAddress);
-        if(withRequestDetails && request.hasContentOrSourceParam()) {
+        if(request != null && withRequestDetails && request.hasContentOrSourceParam()) {
             msg.addBody(request.contentOrSourceParam());
         }
-        msg.addPath(request.path());
+        
+        if(request != null) {
+            msg.addPath(request.path());
+            msg.addRestHeaders(request.getHeaders());
+            msg.addRestParams(request.params());
+        }
         msg.addException(t);
         msg.addEffectiveUser(getUser());
-        msg.addRestHeaders(request.getHeaders());
-        msg.addRestParams(request.params());
         save(msg);
     }
 
@@ -337,7 +341,7 @@ public abstract class AbstractAuditLog implements AuditLog {
     private boolean checkFilter(final Category category, final String action, final String effectiveUser, TransportRequest request) {
         
         if(log.isTraceEnabled()) {
-            log.trace("Check category:{}, action:{}, effectiveUser:{}, request:{}", category, action, effectiveUser, request.getClass().getSimpleName());
+            log.trace("Check category:{}, action:{}, effectiveUser:{}, request:{}", category, action, effectiveUser, request==null?null:request.getClass().getSimpleName());
         }
         
         
@@ -378,7 +382,7 @@ public abstract class AbstractAuditLog implements AuditLog {
             return false;
         }
         
-        if (ignoreAuditRequests.length > 0 
+        if (request != null && ignoreAuditRequests.length > 0 
                 && (WildcardMatcher.matchAny(ignoreAuditRequests, action) || WildcardMatcher.matchAny(ignoreAuditRequests, request.getClass().getSimpleName()))) {
             
             if(log.isTraceEnabled()) {
@@ -409,7 +413,7 @@ public abstract class AbstractAuditLog implements AuditLog {
     private boolean checkFilter(final Category category, final String effectiveUser, RestRequest request) {
         
         if(log.isTraceEnabled()) {
-            log.trace("Check for REST category:{}, effectiveUser:{}, request:{}", category, effectiveUser, request.path());
+            log.trace("Check for REST category:{}, effectiveUser:{}, request:{}", category, effectiveUser, request==null?null:request.path());
         }
         
         if(!restAuditingEnabled) {
@@ -432,7 +436,7 @@ public abstract class AbstractAuditLog implements AuditLog {
             return false;
         }
         
-        if (ignoreAuditRequests.length > 0 
+        if (request != null && ignoreAuditRequests.length > 0 
                 && (WildcardMatcher.matchAny(ignoreAuditRequests, request.path()))) {
             
             if(log.isTraceEnabled()) {

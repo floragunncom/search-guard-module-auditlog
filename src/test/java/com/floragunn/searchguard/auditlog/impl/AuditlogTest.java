@@ -75,4 +75,23 @@ public class AuditlogTest {
         al.logGrantedPrivileges("indices:data/read/search", sr, null);
         Assert.assertEquals(1, TestAuditlogImpl.messages.size());
     }
+    
+    @Test
+    public void testSslException() {
+        
+        Settings settings = Settings.builder()
+                .put("searchguard.audit.type", TestAuditlogImpl.class.getName())
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_TRANSPORT, true)
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_REST, true)
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_REQUEST_DETAILS, true)
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_RESOLVE_BULK_REQUESTS, true)
+                .put("searchguard.audit.threadpool.size", 0)
+                .build();
+        AbstractAuditLog al = new AuditLogImpl(settings, null,  null, AbstractSGUnitTest.MOCK_POOL, null, cs);
+        TestAuditlogImpl.clear();
+        al.logSSLException(null, new Exception("test rest"));
+        al.logSSLException(null, new Exception("test rest"), null, null);
+        System.out.println(TestAuditlogImpl.sb.toString());
+        Assert.assertEquals(2, TestAuditlogImpl.messages.size());
+    }
 }

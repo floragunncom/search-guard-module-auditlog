@@ -213,7 +213,10 @@ public final class RequestResolver {
         msg.addEffectiveUser(effectiveUser);
         msg.addRemoteAddress(remoteAddress);
         msg.addAction(action);
-        msg.addRequestType(request.getClass().getSimpleName());
+        
+        if(request != null) {
+            msg.addRequestType(request.getClass().getSimpleName());
+        }
         
         if(sgAdmin != null) {
             msg.addIsAdminDn(sgAdmin);
