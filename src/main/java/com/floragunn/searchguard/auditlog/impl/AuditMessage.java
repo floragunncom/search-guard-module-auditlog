@@ -233,7 +233,7 @@ public final class AuditMessage {
     }
 
     public Map<String, Object> getAsMap() {
-      return Collections.unmodifiableMap(this.auditInfo);
+      return new HashMap<>(this.auditInfo);
     }
     
     public String getInitiatingUser() {
