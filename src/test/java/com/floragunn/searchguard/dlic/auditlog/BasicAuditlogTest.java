@@ -382,4 +382,60 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("MISSING_PRIVILEGES"));
         Assert.assertTrue(TestAuditlogImpl.messages.size() > 2);
     }
+    
+    @Test
+    public void testAliasResolution() throws Exception {
+
+        Settings additionalSettings = Settings.builder()
+                .put("searchguard.audit.type", TestAuditlogImpl.class.getName())
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_TRANSPORT, true)
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_REST, false)
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_RESOLVE_BULK_REQUESTS, false)
+                .put("searchguard.audit.enable_request_details", true)
+                .put("searchguard.audit.threadpool.size", 0)
+                .build();
+        
+        setup(additionalSettings);
+      
+       
+        try (TransportClient tc = getInternalTransportClient()) {                    
+            for(int i=0; i<3; i++)
+            tc.index(new IndexRequest("vulcangov").type("kolinahr").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
+            tc.admin().indices().aliases(new IndicesAliasesRequest().addAliasAction(AliasActions.add().alias("thealias").index("vulcangov"))).actionGet();
+        }
+           
+        TestAuditlogImpl.clear();
+        HttpResponse response = rh.executeGetRequest("thealias/_search?pretty", encodeBasicHeader("admin", "admin"));
+        Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
+        System.out.println(TestAuditlogImpl.sb.toString());
+        Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("thealias"));
+        Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("audit_trace_resolved_indices"));
+        Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("vulcangov"));
+        Assert.assertEquals(1, TestAuditlogImpl.messages.size());
+        TestAuditlogImpl.clear();
+    }
+    
+    @Test
+    public void testAliasBadHeaders() throws Exception {
+
+        Settings additionalSettings = Settings.builder()
+                .put("searchguard.audit.type", TestAuditlogImpl.class.getName())
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_TRANSPORT, true)
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_RESOLVE_BULK_REQUESTS, true)
+                .put("searchguard.audit.enable_request_details", true)
+                .put("searchguard.audit.threadpool.size", 0)
+                .build();
+        
+        setup(additionalSettings);
+           
+        TestAuditlogImpl.clear();
+        HttpResponse response = rh.executeGetRequest("_search?pretty", new BasicHeader("_sg_user", "xxx"), encodeBasicHeader("admin", "admin"));
+        Assert.assertEquals(HttpStatus.SC_FORBIDDEN, response.getStatusCode());
+        System.out.println(TestAuditlogImpl.sb.toString());
+        Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("YWRtaW46YWRtaW4"));
+        Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("BAD_HEADERS"));
+        Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("xxx"));
+        Assert.assertEquals(1, TestAuditlogImpl.messages.size());
+        TestAuditlogImpl.clear();
+    }
 }
