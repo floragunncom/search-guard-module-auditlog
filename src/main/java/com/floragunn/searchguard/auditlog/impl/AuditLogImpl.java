@@ -70,7 +70,7 @@ public final class AuditLogImpl extends AbstractAuditLog {
     }
 
     static {
-        printLicenseInfo();
+        //printLicenseInfo();
     }
     
     private ThreadPoolExecutor createExecutor(final int threadPoolSize, final int maxQueueLen) {
