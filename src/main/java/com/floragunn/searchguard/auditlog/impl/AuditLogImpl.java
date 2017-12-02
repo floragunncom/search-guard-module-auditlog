@@ -99,7 +99,7 @@ public final class AuditLogImpl extends AbstractAuditLog {
         
         this.pool = createExecutor(threadPoolSize, threadPoolMaxQueueLen);        
       
-        final String index = settings.get(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_INDEX,"auditlog6");
+        final String index = settings.get(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_INDEX,"'sg6-auditlog-'YYYY.MM.dd");
         final String doctype = settings.get(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_TYPE,"auditlog");
         
 		if (type != null) {

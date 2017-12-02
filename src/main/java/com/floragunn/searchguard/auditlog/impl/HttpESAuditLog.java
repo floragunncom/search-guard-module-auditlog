@@ -51,7 +51,7 @@ public final class HttpESAuditLog extends AuditLogSink {
 		super(settings, threadPool, resolver, clusterService);
 		
 		servers = settings.getAsArray(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_HTTP_ENDPOINTS, new String[] { "localhost:9200" });
-		this.index = settings.get(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_INDEX, "auditlog6");
+		this.index = settings.get(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_INDEX, "'sg6-auditlog-'YYYY.MM.dd");
 		
 		try {
             this.indexPattern = DateTimeFormat.forPattern(index);

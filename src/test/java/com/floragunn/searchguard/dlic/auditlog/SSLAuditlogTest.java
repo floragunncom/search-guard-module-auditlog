@@ -54,7 +54,7 @@ public class SSLAuditlogTest extends AbstractAuditlogiUnitTest {
         HttpResponse response = rh.executeGetRequest("_search");
         Assert.assertEquals(HttpStatus.SC_UNAUTHORIZED, response.getStatusCode());
         Thread.sleep(2000);
-        response = rh.executeGetRequest("auditlog6/_search", encodeBasicHeader("admin", "admin"));
+        response = rh.executeGetRequest("sg6-auditlog*/_search", encodeBasicHeader("admin", "admin"));
         System.out.println(response.getBody());
         Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
         assertContains(response, "*\"hits\":{\"total\":1,*");
@@ -85,7 +85,7 @@ public class SSLAuditlogTest extends AbstractAuditlogiUnitTest {
         HttpResponse response = rh.executeGetRequest("_search");
         Assert.assertEquals(HttpStatus.SC_UNAUTHORIZED, response.getStatusCode());
         Thread.sleep(2000);
-        response = rh.executeGetRequest("auditlog6/_search", encodeBasicHeader("admin", "admin"));
+        response = rh.executeGetRequest("sg6-auditlog*/_search", encodeBasicHeader("admin", "admin"));
         System.out.println(response.getBody());
         Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
         assertContains(response, "*\"hits\":{\"total\":1,*");
@@ -115,7 +115,7 @@ public class SSLAuditlogTest extends AbstractAuditlogiUnitTest {
         HttpResponse response = rh.executeGetRequest("_search");
         Assert.assertEquals(HttpStatus.SC_UNAUTHORIZED, response.getStatusCode());
         Thread.sleep(2000);
-        response = rh.executeGetRequest("auditlog6/_search", encodeBasicHeader("admin", "admin"));
+        response = rh.executeGetRequest("sg6-auditlog-*/_search", encodeBasicHeader("admin", "admin"));
         System.out.println(response.getBody());
         Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
         assertContains(response, "*\"hits\":{\"total\":1,*");
