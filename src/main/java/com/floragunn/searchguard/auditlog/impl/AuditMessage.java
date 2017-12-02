@@ -216,19 +216,19 @@ public final class AuditMessage {
     
     public void addRestParams(Map<String,String> params) {
         if(params != null && !params.isEmpty()) {
-            auditInfo.put(REST_REQUEST_PARAMS, params);
+            auditInfo.put(REST_REQUEST_PARAMS, new HashMap<>(params));
         }
     }
     
     public void addRestHeaders(Map<String,List<String>> headers) {
         if(headers != null && !headers.isEmpty()) {
-             auditInfo.put(REST_REQUEST_HEADERS, headers);
+             auditInfo.put(REST_REQUEST_HEADERS, new HashMap<>(headers));
         }
     }
     
     public void addTransportHeaders(Map<String,String> headers) {
         if(headers != null && !headers.isEmpty()) {
-            auditInfo.put(TRANSPORT_REQUEST_HEADERS, headers);
+            auditInfo.put(TRANSPORT_REQUEST_HEADERS, new HashMap<>(headers));
         }
     }
 
@@ -255,7 +255,7 @@ public final class AuditMessage {
 	@Override
 	public String toString() {
 		try {
-			return JsonXContent.contentBuilder().map(auditInfo).string();
+			return JsonXContent.contentBuilder().map(getAsMap()).string();
 		} catch (final IOException e) {
 		    throw ExceptionsHelper.convertToElastic(e);
 		}
@@ -263,7 +263,7 @@ public final class AuditMessage {
 	
     public String toPrettyString() {
         try {
-            return JsonXContent.contentBuilder().prettyPrint().map(auditInfo).string();
+            return JsonXContent.contentBuilder().prettyPrint().map(getAsMap()).string();
         } catch (final IOException e) {
             throw ExceptionsHelper.convertToElastic(e);
         }
@@ -271,7 +271,7 @@ public final class AuditMessage {
 
 	public String toText() {
 		StringBuilder builder = new StringBuilder();
-		for (Entry<String, Object> entry : auditInfo.entrySet()) {
+		for (Entry<String, Object> entry : getAsMap().entrySet()) {
 			addIfNonEmpty(builder, entry.getKey(), stringOrNull(entry.getValue()));
 		}
 		return builder.toString();
@@ -283,7 +283,7 @@ public final class AuditMessage {
 
 	public String toUrlParameters() {
 		URIBuilder builder = new URIBuilder();
-		for (Entry<String, Object> entry : auditInfo.entrySet()) {
+		for (Entry<String, Object> entry : getAsMap().entrySet()) {
 			builder.addParameter(entry.getKey(), stringOrNull(entry.getValue()));
 		}
 		return builder.toString();
