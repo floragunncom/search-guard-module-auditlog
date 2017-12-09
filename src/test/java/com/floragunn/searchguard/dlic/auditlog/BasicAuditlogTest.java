@@ -34,6 +34,33 @@ import com.floragunn.searchguard.test.helper.rest.RestHelper.HttpResponse;
 public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
 
     @Test
+    public void testSimpleAuthenticated() throws Exception {
+
+        Settings additionalSettings = Settings.builder()
+                .put("searchguard.audit.type", TestAuditlogImpl.class.getName())
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_TRANSPORT, true)
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_RESOLVE_BULK_REQUESTS, true)
+                .put("searchguard.audit.enable_request_details", true)
+                .put("searchguard.audit.threadpool.size", 0)
+                .putArray("searchguard.audit.config.disabled_categories", "AUTHENTICATED")
+                .build();
+        
+        setup(additionalSettings);
+        setupStarfleetIndex();
+        TestAuditlogImpl.clear();
+        
+        System.out.println("#### testSimpleAuthenticated");
+        HttpResponse response = rh.executeGetRequest("_search", encodeBasicHeader("admin", "admin"));
+        Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
+        Thread.sleep(1500);
+        Assert.assertEquals(1, TestAuditlogImpl.messages.size());
+        System.out.println(TestAuditlogImpl.sb.toString());
+        Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("GRANTED_PRIVILEGES"));
+        Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("indices:data/read/search"));
+        Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("REST"));
+    }
+    
+    @Test
     public void testAuthenticated() throws Exception {
 
         Settings additionalSettings = Settings.builder()
@@ -131,7 +158,6 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
         Assert.assertFalse(TestAuditlogImpl.sb.toString().contains("AUTHENTICATED"));
         
     }
-    
 
     public void testJustAuthenticated() throws Exception {
         HttpResponse response = rh.executeGetRequest("", encodeBasicHeader("admin", "admin"));
