@@ -15,12 +15,12 @@
 package com.floragunn.searchguard.auditlog.impl;
 
 import java.io.IOException;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 import org.apache.http.client.utils.URIBuilder;
 import org.elasticsearch.ExceptionsHelper;
@@ -42,6 +42,7 @@ import com.floragunn.searchguard.auditlog.AuditLog.Origin;
 
 public final class AuditMessage {
     
+    private static final String AUTHORIZATION_HEADER = "Authorization";
     public static final String FORMAT_VERSION = "audit_format_version";
     public static final String CATEGORY = "audit_category";
     public static final String REQUEST_EFFECTIVE_USER = "audit_request_effective_user";
@@ -222,13 +223,21 @@ public final class AuditMessage {
     
     public void addRestHeaders(Map<String,List<String>> headers) {
         if(headers != null && !headers.isEmpty()) {
-             auditInfo.put(REST_REQUEST_HEADERS, new HashMap<>(headers));
+            final Map<String, List<String>> headersClone = new HashMap<String, List<String>>(headers)
+                    .entrySet().stream()
+                    .filter(map -> !map.getKey().equalsIgnoreCase(AUTHORIZATION_HEADER))
+                    .collect(Collectors.toMap(p -> p.getKey(), p -> p.getValue()));
+            auditInfo.put(REST_REQUEST_HEADERS, headersClone);
         }
     }
     
     public void addTransportHeaders(Map<String,String> headers) {
         if(headers != null && !headers.isEmpty()) {
-            auditInfo.put(TRANSPORT_REQUEST_HEADERS, new HashMap<>(headers));
+            final Map<String,String> headersClone = new HashMap<String,String>(headers)
+                    .entrySet().stream()
+                    .filter(map -> !map.getKey().equalsIgnoreCase(AUTHORIZATION_HEADER))
+                    .collect(Collectors.toMap(p -> p.getKey(), p -> p.getValue()));
+            auditInfo.put(TRANSPORT_REQUEST_HEADERS, headersClone);
         }
     }
 

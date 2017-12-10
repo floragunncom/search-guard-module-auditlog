@@ -58,6 +58,7 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("GRANTED_PRIVILEGES"));
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("indices:data/read/search"));
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("REST"));
+        Assert.assertFalse(TestAuditlogImpl.sb.toString().toLowerCase().contains("authorization"));
     }
     
     @Test
@@ -137,7 +138,7 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
         HttpResponse response = rh.executeGetRequest("", encodeBasicHeader("unknown", "unknown"));
         Assert.assertEquals(HttpStatus.SC_UNAUTHORIZED, response.getStatusCode());
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("FAILED_LOGIN"));
-        Assert.assertTrue(TestAuditlogImpl.sb.toString(),TestAuditlogImpl.sb.toString().contains("Basic dW5rbm93bjp1bmtub3du"));
+        Assert.assertFalse(TestAuditlogImpl.sb.toString(),TestAuditlogImpl.sb.toString().contains("Basic dW5rbm93bjp1bmtub3du"));
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("utc_timestamp"));
         Assert.assertFalse(TestAuditlogImpl.sb.toString().contains("AUTHENTICATED"));
         Assert.assertEquals(1, TestAuditlogImpl.messages.size());
@@ -219,6 +220,7 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
         Assert.assertTrue(TestAuditlogImpl.sb.toString(), TestAuditlogImpl.sb.toString().contains("indices:data/read/search"));
         Assert.assertTrue(TestAuditlogImpl.sb.toString(), TestAuditlogImpl.sb.toString().contains("match_all"));
         Assert.assertEquals(TestAuditlogImpl.sb.toString(), 4, TestAuditlogImpl.messages.size());
+        Assert.assertFalse(TestAuditlogImpl.sb.toString().toLowerCase().contains("authorization"));
 	}
 	
 	
@@ -458,7 +460,7 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
         HttpResponse response = rh.executeGetRequest("_search?pretty", new BasicHeader("_sg_user", "xxx"), encodeBasicHeader("admin", "admin"));
         Assert.assertEquals(HttpStatus.SC_FORBIDDEN, response.getStatusCode());
         System.out.println(TestAuditlogImpl.sb.toString());
-        Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("YWRtaW46YWRtaW4"));
+        Assert.assertFalse(TestAuditlogImpl.sb.toString().contains("YWRtaW46YWRtaW4"));
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("BAD_HEADERS"));
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("xxx"));
         Assert.assertEquals(1, TestAuditlogImpl.messages.size());
