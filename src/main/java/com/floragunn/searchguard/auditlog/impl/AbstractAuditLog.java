@@ -116,15 +116,20 @@ public abstract class AbstractAuditLog implements AuditLog {
         AuditMessage msg = new AuditMessage(Category.FAILED_LOGIN, clusterService, getOrigin());
         TransportAddress remoteAddress = getRemoteAddress();
         msg.addRemoteAddress(remoteAddress);
-        if(withRequestDetails && request.hasContentOrSourceParam()) {
+        if(request != null && withRequestDetails && request.hasContentOrSourceParam()) {
             msg.addBody(request.contentOrSourceParam());
         }
-        msg.addPath(request.path());
+        
+        if(request != null) {
+            msg.addPath(request.path());
+            msg.addRestHeaders(request.getHeaders());
+            msg.addRestParams(request.params());
+        }
+        
         msg.addInitiatingUser(initiatingUser);
         msg.addEffectiveUser(effectiveUser);
         msg.addIsAdminDn(sgadmin);
-        msg.addRestHeaders(request.getHeaders());
-        msg.addRestParams(request.params());
+        
         save(msg);
     }
 
@@ -153,15 +158,19 @@ public abstract class AbstractAuditLog implements AuditLog {
         AuditMessage msg = new AuditMessage(Category.AUTHENTICATED, clusterService, getOrigin());
         TransportAddress remoteAddress = getRemoteAddress();
         msg.addRemoteAddress(remoteAddress);
-        if(withRequestDetails && request.hasContentOrSourceParam()) {
+        if(request != null && withRequestDetails && request.hasContentOrSourceParam()) {
            msg.addBody(request.contentOrSourceParam());
         }
-        msg.addPath(request.path());
+        
+        if(request != null) {
+            msg.addPath(request.path());
+            msg.addRestHeaders(request.getHeaders());
+            msg.addRestParams(request.params());
+        }
+        
         msg.addInitiatingUser(initiatingUser);
         msg.addEffectiveUser(effectiveUser);
         msg.addIsAdminDn(sgadmin);
-        msg.addRestHeaders(request.getHeaders());
-        msg.addRestParams(request.params());
         save(msg);
     }
 
@@ -174,13 +183,16 @@ public abstract class AbstractAuditLog implements AuditLog {
         AuditMessage msg = new AuditMessage(Category.MISSING_PRIVILEGES, clusterService, getOrigin());
         TransportAddress remoteAddress = getRemoteAddress();
         msg.addRemoteAddress(remoteAddress);
-        if(withRequestDetails && request.hasContentOrSourceParam()) {
+        if(request != null && withRequestDetails && request.hasContentOrSourceParam()) {
            msg.addBody(request.contentOrSourceParam());
         }
-        msg.addPath(request.path());
+        if(request != null) {
+            msg.addPath(request.path());
+            msg.addRestHeaders(request.getHeaders());
+            msg.addRestParams(request.params());
+        }
+        
         msg.addEffectiveUser(effectiveUser);
-        msg.addRestHeaders(request.getHeaders());
-        msg.addRestParams(request.params());
         save(msg);
     }
 
@@ -241,13 +253,16 @@ public abstract class AbstractAuditLog implements AuditLog {
         AuditMessage msg = new AuditMessage(Category.BAD_HEADERS, clusterService, getOrigin());
         TransportAddress remoteAddress = getRemoteAddress();
         msg.addRemoteAddress(remoteAddress);
-        if(withRequestDetails && request.hasContentOrSourceParam()) {
+        if(request != null && withRequestDetails && request.hasContentOrSourceParam()) {
             msg.addBody(request.contentOrSourceParam());
         }
-        msg.addPath(request.path());
-        msg.addEffectiveUser(getUser());        
-        msg.addRestHeaders(request.getHeaders());
-        msg.addRestParams(request.params());
+        if(request != null) {
+            msg.addPath(request.path());
+            msg.addRestHeaders(request.getHeaders());
+            msg.addRestParams(request.params());
+        }
+        
+        msg.addEffectiveUser(getUser());
 
         save(msg);
     }
