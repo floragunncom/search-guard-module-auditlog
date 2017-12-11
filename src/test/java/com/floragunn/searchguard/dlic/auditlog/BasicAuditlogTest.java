@@ -21,9 +21,12 @@ import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest.AliasActions;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.index.IndexRequest;
+import org.elasticsearch.action.search.SearchRequest;
+import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.elasticsearch.client.transport.TransportClient;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.util.concurrent.ThreadContext.StoredContext;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.junit.Assert;
 import org.junit.Test;
@@ -61,6 +64,46 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
         Assert.assertFalse(TestAuditlogImpl.sb.toString().toLowerCase().contains("authorization"));
     }
     
+    @Test
+    public void testSimpleTransportAuthenticated() throws Exception {
+
+        Settings additionalSettings = Settings.builder()
+                .put("searchguard.audit.type", TestAuditlogImpl.class.getName())
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_TRANSPORT, true)
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_REST, false)
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_RESOLVE_BULK_REQUESTS, true)
+                .put("searchguard.audit.enable_request_details", true)
+                .put("searchguard.audit.threadpool.size", 0)
+                .build();
+        
+        setup(additionalSettings);
+        setupStarfleetIndex();
+        TestAuditlogImpl.clear();
+        
+        System.out.println("#### testSimpleAuthenticated");        
+        try (TransportClient tc = getUserTransportClient(clusterInfo, "spock-keystore.jks", Settings.EMPTY)) {  
+            StoredContext ctx = tc.threadPool().getThreadContext().stashContext();
+            try {
+                Header header = encodeBasicHeader("admin", "admin");
+                tc.threadPool().getThreadContext().putHeader(header.getName(), header.getValue());
+                SearchResponse res = tc.search(new SearchRequest()).actionGet(); 
+                System.out.println(res);
+            } finally {
+                ctx.close();
+            }
+        }
+        
+        Thread.sleep(1500);
+        System.out.println(TestAuditlogImpl.sb.toString());
+        Assert.assertEquals(2, TestAuditlogImpl.messages.size());
+        Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("GRANTED_PRIVILEGES"));
+        Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("AUTHENTICATED"));
+        Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("indices:data/read/search"));
+        Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("TRANSPORT"));
+        Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("\"audit_request_effective_user\" : \"admin\""));
+        Assert.assertFalse(TestAuditlogImpl.sb.toString().contains("REST"));
+        Assert.assertFalse(TestAuditlogImpl.sb.toString().toLowerCase().contains("authorization"));
+    }
     @Test
     public void testAuthenticated() throws Exception {
 

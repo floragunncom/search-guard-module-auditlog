@@ -129,8 +129,7 @@ public abstract class AbstractAuditLog implements AuditLog {
     }
 
     @Override
-    public void logSucceededLogin(String effectiveUser, boolean sgadmin, String initiatingUser, TransportRequest request, Task task) {
-        final String action = null;
+    public void logSucceededLogin(String effectiveUser, boolean sgadmin, String initiatingUser, TransportRequest request, String action, Task task) {
         
         if(!checkFilter(Category.AUTHENTICATED, action, effectiveUser, request)) {
             return;
