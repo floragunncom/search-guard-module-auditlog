@@ -16,6 +16,7 @@ package com.floragunn.searchguard.dlic.auditlog;
 
 import org.apache.http.Header;
 import org.apache.http.HttpStatus;
+import org.apache.http.NoHttpResponseException;
 import org.apache.http.message.BasicHeader;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest.AliasActions;
@@ -32,6 +33,7 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import com.floragunn.searchguard.support.ConfigConstants;
+import com.floragunn.searchguard.test.helper.file.FileHelper;
 import com.floragunn.searchguard.test.helper.rest.RestHelper.HttpResponse;
 
 public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
@@ -62,6 +64,35 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("indices:data/read/search"));
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("REST"));
         Assert.assertFalse(TestAuditlogImpl.sb.toString().toLowerCase().contains("authorization"));
+    }
+    
+    @Test
+    public void testSSLPlainText() throws Exception {
+
+        Settings additionalSettings = Settings.builder()
+                .put("searchguard.ssl.http.enabled",true)
+                .put("searchguard.ssl.http.keystore_filepath", FileHelper.getAbsoluteFilePathFromClassPath("node-0-keystore.jks"))
+                .put("searchguard.ssl.http.truststore_filepath", FileHelper.getAbsoluteFilePathFromClassPath("truststore.jks"))
+                .put("searchguard.audit.type", TestAuditlogImpl.class.getName())
+                .put("searchguard.audit.enable_request_details", true)
+                .put("searchguard.audit.threadpool.size", 0)
+                .build();
+        
+        setup(additionalSettings);
+        TestAuditlogImpl.clear();
+
+        try {
+            nonSslRestHelper().executeGetRequest("_search", encodeBasicHeader("admin", "admin"));
+            Assert.fail();
+        } catch (NoHttpResponseException e) {
+            //expected
+        }
+
+        Thread.sleep(1500);
+        System.out.println(TestAuditlogImpl.sb.toString());
+        Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("SSL_EXCEPTION"));
+        Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("exception_stacktrace"));
+        Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("not an SSL/TLS record"));
     }
     
     @Test
