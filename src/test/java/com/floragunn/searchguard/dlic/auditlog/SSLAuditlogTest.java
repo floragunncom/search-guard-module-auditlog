@@ -34,7 +34,6 @@ public class SSLAuditlogTest extends AbstractAuditlogiUnitTest {
                 .putArray(ConfigConstants.SEARCHGUARD_AUDIT_IGNORE_USERS, "*spock*","admin", "CN=kirk,OU=client,O=client,L=Test,C=DE")
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_TRANSPORT, true)
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_RESOLVE_BULK_REQUESTS, true)
-                .put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_REQUEST_DETAILS, true)
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_ENABLE_SSL, true)
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_SSL_ENABLE_SSL_CLIENT_AUTH, false)
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_SSL_PEMTRUSTEDCAS_FILEPATH, 
@@ -70,7 +69,6 @@ public class SSLAuditlogTest extends AbstractAuditlogiUnitTest {
                 .putArray(ConfigConstants.SEARCHGUARD_AUDIT_IGNORE_USERS, "*spock*","admin", "CN=kirk,OU=client,O=client,L=Test,C=DE")
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_TRANSPORT, true)
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_RESOLVE_BULK_REQUESTS, true)
-                .put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_REQUEST_DETAILS, true)
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_ENABLE_SSL, true)
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_SSL_ENABLE_SSL_CLIENT_AUTH, true)
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_SSL_PEMTRUSTEDCAS_FILEPATH, 
@@ -100,7 +98,6 @@ public class SSLAuditlogTest extends AbstractAuditlogiUnitTest {
                 .putArray(ConfigConstants.SEARCHGUARD_AUDIT_IGNORE_USERS, "*spock*","admin", "CN=kirk,OU=client,O=client,L=Test,C=DE")
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_TRANSPORT, true)
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_RESOLVE_BULK_REQUESTS, true)
-                .put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_REQUEST_DETAILS, true)
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_ENABLE_SSL, true)
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_SSL_PEMTRUSTEDCAS_FILEPATH, 
                         FileHelper.getAbsoluteFilePathFromClassPath("chain-ca.pem"))

@@ -485,12 +485,14 @@ public class WebhookAuditLogTest {
 	}
 
 	private void assertStringContainsAllKeysAndValues(String in) {
+	    System.out.println(in);
 		Assert.assertTrue(in, in.contains(AuditMessage.FORMAT_VERSION));
 		Assert.assertTrue(in, in.contains(AuditMessage.CATEGORY));
 		Assert.assertTrue(in, in.contains(AuditMessage.FORMAT_VERSION));
 		Assert.assertTrue(in, in.contains(AuditMessage.REMOTE_ADDRESS));
 		Assert.assertTrue(in, in.contains(AuditMessage.ORIGIN));
-		Assert.assertTrue(in, in.contains(AuditMessage.REQUEST_TYPE));
+		Assert.assertTrue(in, in.contains(AuditMessage.REQUEST_LAYER));
+		Assert.assertTrue(in, in.contains(AuditMessage.TRANSPORT_REQUEST_TYPE));
 		Assert.assertTrue(in, in.contains(AuditMessage.UTC_TIMESTAMP));
 		Assert.assertTrue(in, in.contains(Category.FAILED_LOGIN.name()));
 		Assert.assertTrue(in, in.contains("FAILED_LOGIN"));

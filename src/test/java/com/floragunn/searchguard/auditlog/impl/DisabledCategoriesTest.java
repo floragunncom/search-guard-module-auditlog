@@ -59,8 +59,8 @@ public class DisabledCategoriesTest {
 	public void completetlyInvalidConfigurationTest() throws Exception {
 		Builder settingsBuilder = Settings.builder();
 		settingsBuilder.put("searchguard.audit.type", TestAuditlogImpl.class.getName());
-		settingsBuilder.put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_TRANSPORT, true);
-		settingsBuilder.put("searchguard.audit.config.disabled_categories", "nonexistant");
+		settingsBuilder.put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_TRANSPORT_CATEGORIES, "nonexistent");
+        settingsBuilder.put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_REST_CATEGORIES, "nonexistent");
 		AuditLogImpl auditLog = new AuditLogImpl(settingsBuilder.build(), null, null, AbstractSGUnitTest.MOCK_POOL, null, cs);
 		logAll(auditLog);
 		
@@ -88,7 +88,8 @@ public class DisabledCategoriesTest {
 		final Builder settingsBuilder  = Settings.builder();
 		
 		settingsBuilder.put("searchguard.audit.type", TestAuditlogImpl.class.getName());
-		settingsBuilder.put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_TRANSPORT, true);
+		settingsBuilder.put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_TRANSPORT_CATEGORIES, "NONE");
+        settingsBuilder.put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_REST_CATEGORIES, "NONE");
 		
 		// we use the debug output, no ES client is needed. Also, we 
 		// do not need to close.
@@ -149,8 +150,9 @@ public class DisabledCategoriesTest {
 		
 		Builder settingsBuilder  = Settings.builder();
 		settingsBuilder.put("searchguard.audit.type", TestAuditlogImpl.class.getName());
-		settingsBuilder.put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_TRANSPORT, true);
-		settingsBuilder.put("searchguard.audit.config.disabled_categories", disabledCategoriesString);
+		settingsBuilder.put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_TRANSPORT_CATEGORIES, disabledCategoriesString);
+        settingsBuilder.put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_REST_CATEGORIES, disabledCategoriesString);
+        
 	
 		// we use the debug output, no ES client is needed. Also, we 
 		// do not need to close.		

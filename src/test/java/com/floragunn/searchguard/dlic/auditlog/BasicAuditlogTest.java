@@ -32,6 +32,7 @@ import org.elasticsearch.common.xcontent.XContentType;
 import org.junit.Assert;
 import org.junit.Test;
 
+import com.floragunn.searchguard.auditlog.impl.AuditMessage;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.test.helper.file.FileHelper;
 import com.floragunn.searchguard.test.helper.rest.RestHelper.HttpResponse;
@@ -45,9 +46,9 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
                 .put("searchguard.audit.type", TestAuditlogImpl.class.getName())
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_TRANSPORT, true)
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_RESOLVE_BULK_REQUESTS, true)
-                .put("searchguard.audit.enable_request_details", true)
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_TRANSPORT_CATEGORIES, "authenticated")
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_REST_CATEGORIES, "authenticated")
                 .put("searchguard.audit.threadpool.size", 0)
-                .putArray("searchguard.audit.config.disabled_categories", "AUTHENTICATED")
                 .build();
         
         setup(additionalSettings);
@@ -74,7 +75,8 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
                 .put("searchguard.ssl.http.keystore_filepath", FileHelper.getAbsoluteFilePathFromClassPath("node-0-keystore.jks"))
                 .put("searchguard.ssl.http.truststore_filepath", FileHelper.getAbsoluteFilePathFromClassPath("truststore.jks"))
                 .put("searchguard.audit.type", TestAuditlogImpl.class.getName())
-                .put("searchguard.audit.enable_request_details", true)
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_TRANSPORT_CATEGORIES, "NONE")
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_REST_CATEGORIES, "NONE")
                 .put("searchguard.audit.threadpool.size", 0)
                 .build();
         
@@ -103,7 +105,8 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_TRANSPORT, true)
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_REST, false)
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_RESOLVE_BULK_REQUESTS, true)
-                .put("searchguard.audit.enable_request_details", true)
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_TRANSPORT_CATEGORIES, "NONE")
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_REST_CATEGORIES, "NONE")
                 .put("searchguard.audit.threadpool.size", 0)
                 .build();
         
@@ -135,6 +138,76 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
         Assert.assertFalse(TestAuditlogImpl.sb.toString().contains("REST"));
         Assert.assertFalse(TestAuditlogImpl.sb.toString().toLowerCase().contains("authorization"));
     }
+
+    @Test
+    public void testTaskId() throws Exception {
+
+        Settings additionalSettings = Settings.builder()
+                .put("searchguard.audit.type", TestAuditlogImpl.class.getName())
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_TRANSPORT_CATEGORIES, "NONE")
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_REST_CATEGORIES, "NONE")
+                .put("searchguard.audit.threadpool.size", 0)
+                .build();
+        
+        setup(additionalSettings);
+        setupStarfleetIndex();
+        TestAuditlogImpl.clear();
+               
+        try (TransportClient tc = getUserTransportClient(clusterInfo, "spock-keystore.jks", Settings.EMPTY)) {  
+            StoredContext ctx = tc.threadPool().getThreadContext().stashContext();
+            try {
+                Header header = encodeBasicHeader("admin", "admin");
+                tc.threadPool().getThreadContext().putHeader(header.getName(), header.getValue());
+                SearchResponse res = tc.search(new SearchRequest()).actionGet(); 
+                System.out.println(res);
+            } finally {
+                ctx.close();
+            }
+        }
+        
+        Thread.sleep(1500);
+        System.out.println(TestAuditlogImpl.sb.toString());
+        Assert.assertEquals(2, TestAuditlogImpl.messages.size());
+        Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("GRANTED_PRIVILEGES"));
+        Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("AUTHENTICATED"));
+        Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("indices:data/read/search"));
+        Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("TRANSPORT"));
+        Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("\"audit_request_effective_user\" : \"admin\""));
+        Assert.assertFalse(TestAuditlogImpl.sb.toString().contains("REST"));
+        Assert.assertFalse(TestAuditlogImpl.sb.toString().toLowerCase().contains("authorization"));
+        Assert.assertEquals(TestAuditlogImpl.messages.get(0).getAsMap().get(AuditMessage.TASK_ID),
+                TestAuditlogImpl.messages.get(1).getAsMap().get(AuditMessage.TASK_ID));
+    }
+    
+    @Test
+    public void testDefaultsRest() throws Exception {
+
+        Settings additionalSettings = Settings.builder()
+                .put("searchguard.audit.type", TestAuditlogImpl.class.getName())
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_TRANSPORT_CATEGORIES, "NONE")
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_REST_CATEGORIES, "NONE")
+                .put("searchguard.audit.threadpool.size", 0)
+                .build();
+        
+        setup(additionalSettings);
+        setupStarfleetIndex();
+        TestAuditlogImpl.clear();
+               
+        HttpResponse response = rh.executeGetRequest("_search", encodeBasicHeader("admin", "admin"));
+        Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
+        
+        Thread.sleep(1500);
+        System.out.println(TestAuditlogImpl.sb.toString());
+        Assert.assertEquals(2, TestAuditlogImpl.messages.size());
+        Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("GRANTED_PRIVILEGES"));
+        Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("AUTHENTICATED"));
+        Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("indices:data/read/search"));
+        Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("TRANSPORT"));
+        Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("\"audit_request_effective_user\" : \"admin\""));
+        Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("REST"));
+        Assert.assertFalse(TestAuditlogImpl.sb.toString().toLowerCase().contains("authorization"));
+    }
+    
     @Test
     public void testAuthenticated() throws Exception {
 
@@ -142,7 +215,8 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
                 .put("searchguard.audit.type", TestAuditlogImpl.class.getName())
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_TRANSPORT, true)
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_RESOLVE_BULK_REQUESTS, true)
-                .put("searchguard.audit.enable_request_details", true)
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_TRANSPORT_CATEGORIES, "NONE")
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_REST_CATEGORIES, "NONE")
                 .put("searchguard.audit.threadpool.size", 0)
                 .build();
         
@@ -168,9 +242,7 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
 
         Settings additionalSettings = Settings.builder()
                 .put("searchguard.audit.type", TestAuditlogImpl.class.getName())
-                .put("searchguard.audit.enable_request_details", true)
                 .put("searchguard.audit.threadpool.size", -1)
-                .putArray("searchguard.audit.config.disabled_categories", "AUTHENTICATED")
                 .build();
         
         setup(additionalSettings);
@@ -385,7 +457,10 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
 
         Settings additionalSettings = Settings.builder()
                 .put("searchguard.audit.type", "internal_elasticsearch")
-                .put("searchguard.audit.enable_request_details", false)
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_LOG_REQUEST_BODY, false)
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_RESOLVE_INDICES, false)
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_TRANSPORT_CATEGORIES, "NONE")
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_REST_CATEGORIES, "NONE")
                 .put("searchguard.audit.threadpool.size", 10) //must be greater 0
                 .put("searchguard.audit.config.index", "'auditlog-'YYYY.MM.dd.ss")
                 .build();
@@ -411,7 +486,8 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
                 .put("searchguard.audit.type", TestAuditlogImpl.class.getName())
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_TRANSPORT, true)
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_RESOLVE_BULK_REQUESTS, true)
-                .put("searchguard.audit.enable_request_details", true)
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_TRANSPORT_CATEGORIES, "NONE")
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_REST_CATEGORIES, "NONE")
                 .put("searchguard.audit.threadpool.size", 0)
                 .build();
         
@@ -454,7 +530,8 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
                 .put("searchguard.audit.type", TestAuditlogImpl.class.getName())
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_TRANSPORT, true)
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_RESOLVE_BULK_REQUESTS, true)
-                .put("searchguard.audit.enable_request_details", true)
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_TRANSPORT_CATEGORIES, "NONE")
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_REST_CATEGORIES, "NONE")
                 .put("searchguard.audit.threadpool.size", 0)
                 .build();
         
@@ -494,7 +571,8 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_TRANSPORT, true)
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_REST, false)
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_RESOLVE_BULK_REQUESTS, false)
-                .put("searchguard.audit.enable_request_details", true)
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_TRANSPORT_CATEGORIES, "NONE")
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_REST_CATEGORIES, "NONE")
                 .put("searchguard.audit.threadpool.size", 0)
                 .build();
         
@@ -525,7 +603,8 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
                 .put("searchguard.audit.type", TestAuditlogImpl.class.getName())
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_TRANSPORT, true)
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_RESOLVE_BULK_REQUESTS, true)
-                .put("searchguard.audit.enable_request_details", true)
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_TRANSPORT_CATEGORIES, "NONE")
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_REST_CATEGORIES, "NONE")
                 .put("searchguard.audit.threadpool.size", 0)
                 .build();
         

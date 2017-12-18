@@ -42,7 +42,6 @@ public class TracingTests extends SingleClusterTest {
         
         final Settings settings = Settings.builder()
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_TYPE, "log4j")
-                .put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_REQUEST_DETAILS, true)
                 .put("searchguard.audit.resolve_bulk_requests", true)
                 .put("searchguard.audit.config.log4j.logger_name", "sg_action_trace")
                 .put("searchguard.audit.config.log4j.level", "TRACE")

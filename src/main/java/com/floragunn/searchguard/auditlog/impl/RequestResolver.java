@@ -54,7 +54,6 @@ import org.elasticsearch.transport.TransportRequest;
 
 import com.floragunn.searchguard.auditlog.AuditLog.Origin;
 import com.floragunn.searchguard.auditlog.impl.AuditMessage.Category;
-import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.support.WildcardMatcher;
 
 public final class RequestResolver {
@@ -74,59 +73,11 @@ public final class RequestResolver {
             final IndexNameExpressionResolver resolver, 
             final ClusterService cs, 
             final Settings settings, 
-            final boolean withDetails, 
-            final boolean resolveBulk, 
+            final boolean logRequestBody, 
+            final boolean resolveIndices, 
+            final boolean resolveBulk,
+            final String searchguardIndex,
             final Throwable exception)  {
-        
-        //final List<AuditMessage> messages = new ArrayList<AuditMessage>(1000);
-        
-//        if(resolveBulk) {
-//            if (request instanceof CompositeIndicesRequest) {
-//
-//                if(request instanceof BulkShardRequest) {
-//
-//                    for(BulkItemRequest ar: ((BulkShardRequest) request).items()) {
-//                        messages.add(resolveInner(category, effectiveUser, sgAdmin, initiatingUser, remoteAddress, action, privilege, origin, ar.request(), resolver, cs, settings, withDetails, exception));
-//                    }}else
-//                
-//                if(request instanceof BulkRequest) {
-//
-//                    for(DocWriteRequest<?> ar: ((BulkRequest) request).requests()) {
-//                        messages.add(resolveInner(category, effectiveUser, sgAdmin, initiatingUser, remoteAddress, action, privilege, origin, ar, resolver, cs, settings, withDetails, exception));
-//                    }
-//                    
-////                } else if(request instanceof MultiGetRequest) {
-////                    
-////                    for(Item item: ((MultiGetRequest) request).getItems()) {
-////                        messages.add(resolveInner(category, effectiveUser, sgAdmin, initiatingUser, remoteAddress, action, privilege, origin, item, resolver, cs, settings, withDetails, exception));
-////                    }
-//                    
-//                //} else if(request instanceof MultiSearchRequest) {
-//                    
-//                    //    for(ActionRequest ar: ((MultiSearchRequest) request).requests()) {
-//                    //   messages.add(resolveInner(category, effectiveUser, sgAdmin, initiatingUser, remoteAddress, action, privilege, origin, ar, resolver, cs, settings, withDetails, exception));
-//                    //}
-//                    
-//                } else if(request instanceof MultiTermVectorsRequest) {
-////                    
-////                    for(ActionRequest ar: (Iterable<TermVectorsRequest>) () -> ((MultiTermVectorsRequest) request).iterator()) {
-////                        messages.add(resolveInner(category, effectiveUser, sgAdmin, initiatingUser, remoteAddress, action, privilege, origin, ar, resolver, cs, settings, withDetails, exception));
-////                    }
-//                    
-//                    
-//                } else {
-//                    //log.debug("Can not handle composite request of type '"+request+"' here");
-//                }
-//                
-//            } else {
-//                messages.add(resolveInner(category, effectiveUser, sgAdmin, initiatingUser, remoteAddress, action, privilege, origin, request, resolver, cs, settings, withDetails, exception));
-//            }
-//            
-//        } else {
-//            messages.add(resolveInner(category, effectiveUser, sgAdmin, initiatingUser, remoteAddress, action, privilege, origin, request, resolver, cs, settings, withDetails, exception));
-//        }
-        
-        //return messages;
         
         if(resolveBulk && request instanceof BulkShardRequest) { 
             final BulkItemRequest[] innerRequests = ((BulkShardRequest) request).items();
@@ -149,7 +100,9 @@ public final class RequestResolver {
                         resolver, 
                         cs, 
                         settings, 
-                        withDetails, 
+                        logRequestBody, 
+                        resolveIndices,
+                        searchguardIndex,
                         exception);
                  msg.addShardId(((BulkShardRequest) request).shardId());
                 
@@ -167,8 +120,6 @@ public final class RequestResolver {
                 
                 return Collections.emptyList();
             }
-            
-            
         }
         
         return Collections.singletonList(resolveInner(
@@ -186,7 +137,9 @@ public final class RequestResolver {
                 resolver, 
                 cs, 
                 settings, 
-                withDetails, 
+                logRequestBody, 
+                resolveIndices,
+                searchguardIndex,
                 exception));
     }
     
@@ -205,10 +158,12 @@ public final class RequestResolver {
             final IndexNameExpressionResolver resolver, 
             final ClusterService cs,
             final Settings settings,
-            final boolean withDetails,
+            final boolean logRequestBody, 
+            final boolean resolveIndices,
+            final String searchguardIndex,
             final Throwable exception)  {
 
-        final AuditMessage msg = new AuditMessage(category, cs, origin);
+        final AuditMessage msg = new AuditMessage(category, cs, origin, Origin.TRANSPORT);
         msg.addInitiatingUser(initiatingUser);
         msg.addEffectiveUser(effectiveUser);
         msg.addRemoteAddress(remoteAddress);
@@ -241,21 +196,15 @@ public final class RequestResolver {
             final String id = item.id();
             msg.addType(type);
             msg.addId(id);
-            if(withDetails) {
-                addIndicesSourceSafe(msg, indices, resolver, cs, null, settings, false);
-            }
+            addIndicesSourceSafe(msg, indices, resolver, cs, null, settings, resolveIndices, logRequestBody, false, searchguardIndex);
         } else if (request instanceof CreateIndexRequest) {
             final CreateIndexRequest cir = (CreateIndexRequest) request;
             final String[] indices = arrayOrEmpty(cir.indices());
-            if(withDetails) {
-                addIndicesSourceSafe(msg, indices, resolver, cs, null, settings, false);
-            }
+            addIndicesSourceSafe(msg, indices, resolver, cs, null, settings, resolveIndices, logRequestBody, false, searchguardIndex);
         } else if (request instanceof DeleteIndexRequest) {
             final DeleteIndexRequest dir = (DeleteIndexRequest) request;
             final String[] indices = arrayOrEmpty(dir.indices());
-            if(withDetails) {
-                addIndicesSourceSafe(msg, indices, resolver, cs, null, settings, false);
-            }
+            addIndicesSourceSafe(msg, indices, resolver, cs, null, settings, resolveIndices, logRequestBody, false, searchguardIndex);
         } else if (request instanceof IndexRequest) {
             final IndexRequest ir = (IndexRequest) request;
             final String[] indices = arrayOrEmpty(ir.indices());
@@ -264,9 +213,7 @@ public final class RequestResolver {
             msg.addShardId(ir.shardId());
             msg.addType(type);
             msg.addId(id);
-            if(withDetails) {
-                addIndicesSourceSafe(msg, indices, resolver, cs, ir.source(), settings, true);
-            }
+            addIndicesSourceSafe(msg, indices, resolver, cs, ir.source(), settings, resolveIndices, logRequestBody, true, searchguardIndex);
         } else if (request instanceof DeleteRequest) {
             final DeleteRequest dr = (DeleteRequest) request;
             final String[] indices = arrayOrEmpty(dr.indices());
@@ -275,9 +222,7 @@ public final class RequestResolver {
             msg.addShardId(dr.shardId());
             msg.addType(type);
             msg.addId(id);
-            if(withDetails) {
-                addIndicesSourceSafe(msg, indices, resolver, cs, null, settings, false);
-            }
+            addIndicesSourceSafe(msg, indices, resolver, cs, null, settings, resolveIndices, logRequestBody, false, searchguardIndex);
         } else if (request instanceof UpdateRequest) {
             final UpdateRequest ur = (UpdateRequest) request;
             final String[] indices = arrayOrEmpty(ur.indices());
@@ -285,9 +230,9 @@ public final class RequestResolver {
             final String id = ur.id();
             msg.addType(type);
             msg.addId(id);
-            if(withDetails) {
-                addIndicesSourceSafe(msg, indices, resolver, cs, null, settings, false);
-    
+            addIndicesSourceSafe(msg, indices, resolver, cs, null, settings, resolveIndices, logRequestBody, false, searchguardIndex);
+            if(logRequestBody) {
+
                 if (ur.doc() != null) {
                     msg.addSource(ur.doc() == null ? null :sourceToString(ur.doc().source()));
                 }
@@ -303,19 +248,15 @@ public final class RequestResolver {
             final String id = gr.id();
             msg.addType(type);
             msg.addId(id);
-            if(withDetails) {
-                addIndicesSourceSafe(msg, indices, resolver, cs, null, settings, false);
-            }
+            addIndicesSourceSafe(msg, indices, resolver, cs, null, settings, resolveIndices, logRequestBody, false, searchguardIndex);
         } else if (request instanceof SearchRequest) {
             final SearchRequest sr = (SearchRequest) request;
             final String[] indices = arrayOrEmpty(sr.indices());
             final String[] types = arrayOrEmpty(sr.types());
             msg.addTypes(types);
-            if(withDetails) {
-                addIndicesSourceSafe(msg, indices, resolver, cs, sr.source() == null? null:sr.source().buildAsBytes(), settings, false);
-            }
+            addIndicesSourceSafe(msg, indices, resolver, cs, sr.source() == null? null:sr.source().buildAsBytes(), settings, resolveIndices, logRequestBody, false, searchguardIndex);
         } else if (request instanceof ClusterUpdateSettingsRequest) {
-            if(withDetails) {
+            if(logRequestBody) {
                 final ClusterUpdateSettingsRequest cusr = (ClusterUpdateSettingsRequest) request;
                 final Settings persistentSettings = cusr.persistentSettings();
                 final Settings transientSettings = cusr.transientSettings();
@@ -330,42 +271,37 @@ public final class RequestResolver {
             msg.addShardId(ir.shardId());
             msg.addType(type);
             msg.addId(id);
-            if(withDetails) {
-                addIndicesSourceSafe(msg, indices, resolver, cs, ir.source(), settings, true);
-            }
+            addIndicesSourceSafe(msg, indices, resolver, cs, ir.source(), settings, resolveIndices, logRequestBody, true, searchguardIndex);
         } else if (request instanceof DeleteByQueryRequest) {
             final DeleteByQueryRequest ir = (DeleteByQueryRequest) request;
             final String[] indices = arrayOrEmpty(ir.indices());
-            if(withDetails) {
-                addIndicesSourceSafe(msg, indices, resolver, cs, null, settings, false);
-            }
+            addIndicesSourceSafe(msg, indices, resolver, cs, null, settings, resolveIndices, logRequestBody, false, searchguardIndex);
         } else if (request instanceof UpdateByQueryRequest) {
             final UpdateByQueryRequest ir = (UpdateByQueryRequest) request;
             final String[] indices = arrayOrEmpty(ir.indices());
-            if(withDetails) {
-                addIndicesSourceSafe(msg, indices, resolver, cs, null, settings, false);
-            }
+            addIndicesSourceSafe(msg, indices, resolver, cs, null, settings, resolveIndices, logRequestBody, false, searchguardIndex);
         } else if (request instanceof PutMappingRequest) {
             final PutMappingRequest pr = (PutMappingRequest) request;
             final Index ci = pr.getConcreteIndex();
             msg.addType(pr.type());
             String[] indices = new String[0];
+            msg.addIndices(indices);
             
             if(ci != null) {
                 indices = new String[]{ci.getName()};
             }
             
-            if(withDetails) {
-                msg.addIndices(indices);
-                msg.addResolvedIndices(indices);
+            if(logRequestBody) {
                 msg.addSource(pr.source());
+            }
+            
+            if(resolveIndices) {
+                msg.addResolvedIndices(indices);
             }
         } else if (request instanceof IndicesRequest) { //less specific
             final IndicesRequest ir = (IndicesRequest) request;
             final String[] indices = arrayOrEmpty(ir.indices());
-            if(withDetails) {
-                addIndicesSourceSafe(msg, indices, resolver, cs, null, settings, false);
-            }
+            addIndicesSourceSafe(msg, indices, resolver, cs, null, settings, resolveIndices, logRequestBody, false, searchguardIndex);
         }
         
         return msg;
@@ -377,28 +313,45 @@ public final class RequestResolver {
             final ClusterService cs, 
             final BytesReference source,
             final Settings settings,
-            final boolean sourceIsSensitive) {
-
-        final String searchguardIndex = settings.get(ConfigConstants.SEARCHGUARD_CONFIG_INDEX_NAME, ConfigConstants.SG_DEFAULT_CONFIG_INDEX);
-        final String[] _indices = indices == null?new String[0]:indices;
-        final String[] resolvedIndices = (resolver==null)?new String[0]:resolver.concreteIndexNames(cs.state(), IndicesOptions.lenientExpandOpen(), indices);
-        msg.addIndices(_indices);
-        msg.addResolvedIndices(resolvedIndices);
+            boolean resolveIndices,
+            final boolean addSource,
+            final boolean sourceIsSensitive,
+            final String searchguardIndex) {
         
-        final Set<String> allIndices = new HashSet<String>(resolvedIndices.length+_indices.length);
-        allIndices.addAll(Arrays.asList(_indices));
-        allIndices.addAll(Arrays.asList(resolvedIndices));
-
-        if(allIndices.contains("_all")) {
-            allIndices.add("*");
+        if(addSource) {
+            resolveIndices = true;
         }
+
+        final String[] _indices = indices == null?new String[0]:indices;
+        msg.addIndices(_indices);
         
-        if(sourceIsSensitive && source != null) {   
-            if(!WildcardMatcher.matchAny(allIndices.toArray(new String[0]), searchguardIndex)) {
+        final Set<String> allIndices;
+        
+        if(resolveIndices) {
+            final String[] resolvedIndices = (resolver==null)?new String[0]:resolver.concreteIndexNames(cs.state(), IndicesOptions.lenientExpandOpen(), indices);
+            msg.addResolvedIndices(resolvedIndices);
+            allIndices = new HashSet<String>(resolvedIndices.length+_indices.length);
+            allIndices.addAll(Arrays.asList(_indices));
+            allIndices.addAll(Arrays.asList(resolvedIndices));
+            if(allIndices.contains("_all")) {
+                allIndices.add("*");
+            }
+        } else {
+            allIndices = new HashSet<String>(_indices.length);
+            allIndices.addAll(Arrays.asList(_indices));
+            if(allIndices.contains("_all")) {
+                allIndices.add("*");
+            }
+        }
+
+        if(addSource) {
+            if(sourceIsSensitive && source != null) {   
+                if(!WildcardMatcher.matchAny(allIndices.toArray(new String[0]), searchguardIndex)) {
+                    msg.addSource(sourceToString(source));
+                }
+            } else if(source != null){
                 msg.addSource(sourceToString(source));
             }
-        } else if(source != null){
-            msg.addSource(sourceToString(source));
         }
     }
     
