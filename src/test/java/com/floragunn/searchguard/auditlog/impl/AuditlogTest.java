@@ -47,8 +47,7 @@ public class AuditlogTest {
     public void testClusterHealthRequest() {
         Settings settings = Settings.builder()
                 .put("searchguard.audit.type", TestAuditlogImpl.class.getName())
-                .put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_TRANSPORT, true)
-                .put("searchguard.audit.enable_request_details", true)
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_TRANSPORT_CATEGORIES, "NONE")
                 .put("searchguard.audit.threadpool.size", 0)
                 .build();
         AbstractAuditLog al = new AuditLogImpl(settings, null, null, AbstractSGUnitTest.MOCK_POOL, null, cs);
@@ -66,8 +65,7 @@ public class AuditlogTest {
         
         Settings settings = Settings.builder()
                 .put("searchguard.audit.type", TestAuditlogImpl.class.getName())
-                .put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_TRANSPORT, true)
-                .put("searchguard.audit.enable_request_details", true)
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_TRANSPORT_CATEGORIES, "NONE")
                 .put("searchguard.audit.threadpool.size", 0)
                 .build();
         AbstractAuditLog al = new AuditLogImpl(settings, null,  null, AbstractSGUnitTest.MOCK_POOL, null, cs);
@@ -83,7 +81,6 @@ public class AuditlogTest {
                 .put("searchguard.audit.type", TestAuditlogImpl.class.getName())
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_TRANSPORT, true)
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_REST, true)
-                .put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_REQUEST_DETAILS, true)
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_RESOLVE_BULK_REQUESTS, true)
                 .put("searchguard.audit.threadpool.size", 0)
                 .build();

@@ -42,7 +42,6 @@ public class TracingTests extends SingleClusterTest {
         
         final Settings settings = Settings.builder()
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_TYPE, "log4j")
-                .put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_REQUEST_DETAILS, true)
                 .put("searchguard.audit.resolve_bulk_requests", true)
                 .put("searchguard.audit.config.log4j.logger_name", "sg_action_trace")
                 .put("searchguard.audit.config.log4j.level", "TRACE")
@@ -217,7 +216,7 @@ public class TracingTests extends SingleClusterTest {
         });
         
     final Settings settings = Settings.builder()
-            .putArray(ConfigConstants.SEARCHGUARD_AUTHCZ_REST_IMPERSONATION_USERS+".worf", "knuddel","nonexists")
+            .putList(ConfigConstants.SEARCHGUARD_AUTHCZ_REST_IMPERSONATION_USERS+".worf", "knuddel","nonexists")
             .build();
     setup(settings);
     final RestHelper rh = nonSslRestHelper();
@@ -283,7 +282,7 @@ public class TracingTests extends SingleClusterTest {
         });
         
     final Settings settings = Settings.builder()
-            .putArray(ConfigConstants.SEARCHGUARD_AUTHCZ_REST_IMPERSONATION_USERS+".worf", "knuddel","nonexists")
+            .putList(ConfigConstants.SEARCHGUARD_AUTHCZ_REST_IMPERSONATION_USERS+".worf", "knuddel","nonexists")
             .build();
     setup(settings);
     final RestHelper rh = nonSslRestHelper();

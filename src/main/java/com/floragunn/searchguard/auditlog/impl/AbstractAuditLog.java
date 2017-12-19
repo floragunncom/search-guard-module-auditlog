@@ -15,7 +15,9 @@
 package com.floragunn.searchguard.auditlog.impl;
 
 import java.net.InetSocketAddress;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -45,13 +47,23 @@ public abstract class AbstractAuditLog implements AuditLog {
     protected final IndexNameExpressionResolver resolver;
     protected final ClusterService clusterService;
     protected final Settings settings;
-    protected final boolean withRequestDetails;
-    protected final boolean resolveBulkRequests;
-    private final String[] ignoreAuditUsers;
-    private final String[] ignoreAuditRequests;
     protected final boolean restAuditingEnabled;
     protected final boolean transportAuditingEnabled;
-    private final List<String> disabledCategories;
+    protected final boolean resolveBulkRequests;
+    
+    protected final boolean logRequestBody;
+    protected final boolean resolveIndices;
+
+    private List<String> ignoreAuditUsers;
+    private final List<String> ignoreAuditRequests;
+    private final List<String> disabledRestCategories;
+    private final List<String> disabledTransportCategories;
+    private final List<String> defaultDisabledCategories = 
+            Arrays.asList(new String[]{Category.AUTHENTICATED.toString(), Category.GRANTED_PRIVILEGES.toString()});
+    private final List<String> defaultIgnoredUsers = 
+            Arrays.asList(new String[]{"kibanaserver"});
+    
+    private final String searchguardIndex;
 
     protected AbstractAuditLog(Settings settings, final ThreadPool threadPool, final IndexNameExpressionResolver resolver, final ClusterService clusterService) {
         super();
@@ -61,44 +73,82 @@ public abstract class AbstractAuditLog implements AuditLog {
         this.resolver = resolver;
         this.clusterService = clusterService;
         
-        disabledCategories = Arrays.stream(settings.getAsArray(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_CATEGORIES, new String[]{}))
-                .map(c->c.toUpperCase()).collect(Collectors.toList());
-        withRequestDetails = settings.getAsBoolean(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_REQUEST_DETAILS, false);
+        this.searchguardIndex = settings.get(ConfigConstants.SEARCHGUARD_CONFIG_INDEX_NAME, ConfigConstants.SG_DEFAULT_CONFIG_INDEX);
+
         resolveBulkRequests = settings.getAsBoolean(ConfigConstants.SEARCHGUARD_AUDIT_RESOLVE_BULK_REQUESTS, false);
         
         restAuditingEnabled = settings.getAsBoolean(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_REST, true);
-        transportAuditingEnabled = settings.getAsBoolean(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_TRANSPORT, false);
+        transportAuditingEnabled = settings.getAsBoolean(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_TRANSPORT, true);
         
-        ignoreAuditUsers = settings.getAsArray(ConfigConstants.SEARCHGUARD_AUDIT_IGNORE_USERS, new String[]{});
-        if (ignoreAuditUsers.length > 0) {
-            log.info("Configured Users to ignore: {}", Arrays.toString(ignoreAuditUsers));
+        disabledRestCategories = new ArrayList<>(settings.getAsList(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_REST_CATEGORIES, defaultDisabledCategories).stream()
+                .map(c->c.toUpperCase()).collect(Collectors.toList()));
+        
+        if(disabledRestCategories.size() == 1 && "NONE".equals(disabledRestCategories.get(0))) {
+            disabledRestCategories.clear();
         }
         
-        ignoreAuditRequests = settings.getAsArray(ConfigConstants.SEARCHGUARD_AUDIT_IGNORE_REQUESTS, new String[]{});
-        if (ignoreAuditUsers.length > 0) {
-            log.info("Configured Requests to ignore: {}", Arrays.toString(ignoreAuditRequests));
+        if (disabledRestCategories.size() > 0) {
+            log.info("Configured categories on rest layer to ignore: {}", disabledRestCategories);
+        }
+        
+        disabledTransportCategories = new ArrayList<>(settings.getAsList(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_TRANSPORT_CATEGORIES, defaultDisabledCategories).stream()
+                .map(c->c.toUpperCase()).collect(Collectors.toList()));
+        
+        if(disabledTransportCategories.size() == 1 && "NONE".equals(disabledTransportCategories.get(0))) {
+            disabledTransportCategories.clear();
+        }
+        
+        if (disabledTransportCategories.size() > 0) {
+            log.info("Configured categories on transport layer to ignore: {}", disabledTransportCategories);
+        }
+        
+        logRequestBody = settings.getAsBoolean(ConfigConstants.SEARCHGUARD_AUDIT_LOG_REQUEST_BODY, true);
+        resolveIndices = settings.getAsBoolean(ConfigConstants.SEARCHGUARD_AUDIT_RESOLVE_INDICES, true);
+        
+        ignoreAuditUsers = new ArrayList<>(settings.getAsList(ConfigConstants.SEARCHGUARD_AUDIT_IGNORE_USERS, defaultIgnoredUsers));
+        
+        if(ignoreAuditUsers.size() == 1 && "NONE".equals(ignoreAuditUsers.get(0))) {
+            ignoreAuditUsers.clear();
+        }
+        
+        if (ignoreAuditUsers.size() > 0) {
+            log.info("Configured Users to ignore: {}", ignoreAuditUsers);
+        }
+        
+        ignoreAuditRequests = settings.getAsList(ConfigConstants.SEARCHGUARD_AUDIT_IGNORE_REQUESTS, Collections.emptyList());
+        if (ignoreAuditUsers.size() > 0) {
+            log.info("Configured Requests to ignore: {}", ignoreAuditRequests);
         }
         
         // check if some categories are invalid
-        for (String event : disabledCategories) {
+        for (String event : disabledRestCategories) {
         	try {
-        		AuditMessage.Category.valueOf(event.toUpperCase());
-        	} catch(IllegalArgumentException iae) {
+        		AuditMessage.Category.valueOf(event.toUpperCase());	
+        	} catch(Exception iae) {
         		log.error("Unkown category {}, please check searchguard.audit.config.disabled_categories settings", event);        		
         	}
 		}
+        
+        // check if some categories are invalid
+        for (String event : disabledTransportCategories) {
+            try {
+                AuditMessage.Category.valueOf(event.toUpperCase());  
+            } catch(Exception iae) {
+                log.error("Unkown category {}, please check searchguard.audit.config.disabled_categories settings", event);             
+            }
+        }
     }
     
     @Override
     public void logFailedLogin(String effectiveUser, boolean sgadmin, String initiatingUser, TransportRequest request, Task task) {
         final String action = null;
         
-        if(!checkFilter(Category.FAILED_LOGIN, action, effectiveUser, request)) {
+        if(!checkTransportFilter(Category.FAILED_LOGIN, action, effectiveUser, request)) {
             return;
         }
         
         final TransportAddress remoteAddress = getRemoteAddress();
-        final List<AuditMessage> msgs = RequestResolver.resolve(Category.FAILED_LOGIN, getOrigin(), action, null, effectiveUser, sgadmin, initiatingUser, remoteAddress, request, getThreadContextHeaders(), task, resolver, clusterService, settings, withRequestDetails, resolveBulkRequests, null);
+        final List<AuditMessage> msgs = RequestResolver.resolve(Category.FAILED_LOGIN, getOrigin(), action, null, effectiveUser, sgadmin, initiatingUser, remoteAddress, request, getThreadContextHeaders(), task, resolver, clusterService, settings, logRequestBody, resolveIndices, resolveBulkRequests, searchguardIndex, null);
         
         for(AuditMessage msg: msgs) {
             save(msg);
@@ -109,14 +159,14 @@ public abstract class AbstractAuditLog implements AuditLog {
     @Override
     public void logFailedLogin(String effectiveUser, boolean sgadmin, String initiatingUser, RestRequest request) {
         
-        if(!checkFilter(Category.FAILED_LOGIN, effectiveUser, request)) {
+        if(!checkRestFilter(Category.FAILED_LOGIN, effectiveUser, request)) {
             return;
         }
         
-        AuditMessage msg = new AuditMessage(Category.FAILED_LOGIN, clusterService, getOrigin());
+        AuditMessage msg = new AuditMessage(Category.FAILED_LOGIN, clusterService, getOrigin(), Origin.REST);
         TransportAddress remoteAddress = getRemoteAddress();
         msg.addRemoteAddress(remoteAddress);
-        if(request != null && withRequestDetails && request.hasContentOrSourceParam()) {
+        if(request != null && logRequestBody && request.hasContentOrSourceParam()) {
             msg.addBody(request.contentOrSourceParam());
         }
         
@@ -136,12 +186,12 @@ public abstract class AbstractAuditLog implements AuditLog {
     @Override
     public void logSucceededLogin(String effectiveUser, boolean sgadmin, String initiatingUser, TransportRequest request, String action, Task task) {
         
-        if(!checkFilter(Category.AUTHENTICATED, action, effectiveUser, request)) {
+        if(!checkTransportFilter(Category.AUTHENTICATED, action, effectiveUser, request)) {
             return;
         }
         
         final TransportAddress remoteAddress = getRemoteAddress();
-        final List<AuditMessage> msgs = RequestResolver.resolve(Category.AUTHENTICATED, getOrigin(), action, null, effectiveUser, sgadmin, initiatingUser,remoteAddress, request, getThreadContextHeaders(), task, resolver, clusterService, settings, withRequestDetails, resolveBulkRequests, null);
+        final List<AuditMessage> msgs = RequestResolver.resolve(Category.AUTHENTICATED, getOrigin(), action, null, effectiveUser, sgadmin, initiatingUser,remoteAddress, request, getThreadContextHeaders(), task, resolver, clusterService, settings, logRequestBody, resolveIndices, resolveBulkRequests, searchguardIndex, null);
         
         for(AuditMessage msg: msgs) {
             save(msg);
@@ -151,14 +201,14 @@ public abstract class AbstractAuditLog implements AuditLog {
     @Override
     public void logSucceededLogin(String effectiveUser, boolean sgadmin, String initiatingUser, RestRequest request) {
         
-        if(!checkFilter(Category.AUTHENTICATED, effectiveUser, request)) {
+        if(!checkRestFilter(Category.AUTHENTICATED, effectiveUser, request)) {
             return;
         }
         
-        AuditMessage msg = new AuditMessage(Category.AUTHENTICATED, clusterService, getOrigin());
+        AuditMessage msg = new AuditMessage(Category.AUTHENTICATED, clusterService, getOrigin(), Origin.REST);
         TransportAddress remoteAddress = getRemoteAddress();
         msg.addRemoteAddress(remoteAddress);
-        if(request != null && withRequestDetails && request.hasContentOrSourceParam()) {
+        if(request != null && logRequestBody && request.hasContentOrSourceParam()) {
            msg.addBody(request.contentOrSourceParam());
         }
         
@@ -176,14 +226,14 @@ public abstract class AbstractAuditLog implements AuditLog {
 
     @Override
     public void logMissingPrivileges(String privilege, String effectiveUser, RestRequest request) {
-        if(!checkFilter(Category.MISSING_PRIVILEGES, effectiveUser, request)) {
+        if(!checkRestFilter(Category.MISSING_PRIVILEGES, effectiveUser, request)) {
             return;
         }
         
-        AuditMessage msg = new AuditMessage(Category.MISSING_PRIVILEGES, clusterService, getOrigin());
+        AuditMessage msg = new AuditMessage(Category.MISSING_PRIVILEGES, clusterService, getOrigin(), Origin.REST);
         TransportAddress remoteAddress = getRemoteAddress();
         msg.addRemoteAddress(remoteAddress);
-        if(request != null && withRequestDetails && request.hasContentOrSourceParam()) {
+        if(request != null && logRequestBody && request.hasContentOrSourceParam()) {
            msg.addBody(request.contentOrSourceParam());
         }
         if(request != null) {
@@ -200,12 +250,12 @@ public abstract class AbstractAuditLog implements AuditLog {
     public void logMissingPrivileges(String privilege, TransportRequest request, Task task) {
         final String action = null;
         
-        if(!checkFilter(Category.MISSING_PRIVILEGES, privilege, getUser(), request)) {
+        if(!checkTransportFilter(Category.MISSING_PRIVILEGES, privilege, getUser(), request)) {
             return;
         }
         
         final TransportAddress remoteAddress = getRemoteAddress();
-        final List<AuditMessage> msgs = RequestResolver.resolve(Category.MISSING_PRIVILEGES, getOrigin(), action, privilege, getUser(), null, null, remoteAddress, request, getThreadContextHeaders(), task, resolver, clusterService, settings, withRequestDetails, resolveBulkRequests, null);
+        final List<AuditMessage> msgs = RequestResolver.resolve(Category.MISSING_PRIVILEGES, getOrigin(), action, privilege, getUser(), null, null, remoteAddress, request, getThreadContextHeaders(), task, resolver, clusterService, settings, logRequestBody, resolveIndices, resolveBulkRequests, searchguardIndex, null);
         
         for(AuditMessage msg: msgs) {
             save(msg);
@@ -216,12 +266,12 @@ public abstract class AbstractAuditLog implements AuditLog {
     public void logGrantedPrivileges(String privilege, TransportRequest request, Task task) {
         final String action = null;
         
-        if(!checkFilter(Category.GRANTED_PRIVILEGES, privilege, getUser(), request)) {
+        if(!checkTransportFilter(Category.GRANTED_PRIVILEGES, privilege, getUser(), request)) {
             return;
         }
         
         final TransportAddress remoteAddress = getRemoteAddress();
-        final List<AuditMessage> msgs = RequestResolver.resolve(Category.GRANTED_PRIVILEGES, getOrigin(), action, privilege, getUser(), null, null, remoteAddress, request, getThreadContextHeaders(), task, resolver, clusterService, settings, withRequestDetails, resolveBulkRequests, null);
+        final List<AuditMessage> msgs = RequestResolver.resolve(Category.GRANTED_PRIVILEGES, getOrigin(), action, privilege, getUser(), null, null, remoteAddress, request, getThreadContextHeaders(), task, resolver, clusterService, settings, logRequestBody, resolveIndices, resolveBulkRequests, searchguardIndex, null);
         
         for(AuditMessage msg: msgs) {
             save(msg);
@@ -231,12 +281,12 @@ public abstract class AbstractAuditLog implements AuditLog {
     @Override
     public void logBadHeaders(TransportRequest request, String action, Task task) {
         
-        if(!checkFilter(Category.BAD_HEADERS, action, getUser(), request)) {
+        if(!checkTransportFilter(Category.BAD_HEADERS, action, getUser(), request)) {
             return;
         }
         
         final TransportAddress remoteAddress = getRemoteAddress();
-        final List<AuditMessage> msgs = RequestResolver.resolve(Category.BAD_HEADERS, getOrigin(), action, null, getUser(), null, null, remoteAddress, request, getThreadContextHeaders(), task, resolver, clusterService, settings, withRequestDetails, resolveBulkRequests, null);
+        final List<AuditMessage> msgs = RequestResolver.resolve(Category.BAD_HEADERS, getOrigin(), action, null, getUser(), null, null, remoteAddress, request, getThreadContextHeaders(), task, resolver, clusterService, settings, logRequestBody, resolveIndices, resolveBulkRequests, searchguardIndex, null);
         
         for(AuditMessage msg: msgs) {
             save(msg);
@@ -246,14 +296,14 @@ public abstract class AbstractAuditLog implements AuditLog {
     @Override
     public void logBadHeaders(RestRequest request) {
         
-        if(!checkFilter(Category.BAD_HEADERS, getUser(), request)) {
+        if(!checkRestFilter(Category.BAD_HEADERS, getUser(), request)) {
             return;
         }
         
-        AuditMessage msg = new AuditMessage(Category.BAD_HEADERS, clusterService, getOrigin());
+        AuditMessage msg = new AuditMessage(Category.BAD_HEADERS, clusterService, getOrigin(), Origin.REST);
         TransportAddress remoteAddress = getRemoteAddress();
         msg.addRemoteAddress(remoteAddress);
-        if(request != null && withRequestDetails && request.hasContentOrSourceParam()) {
+        if(request != null && logRequestBody && request.hasContentOrSourceParam()) {
             msg.addBody(request.contentOrSourceParam());
         }
         if(request != null) {
@@ -270,12 +320,12 @@ public abstract class AbstractAuditLog implements AuditLog {
     @Override
     public void logSgIndexAttempt(TransportRequest request, String action, Task task) {
         
-        if(!checkFilter(Category.SG_INDEX_ATTEMPT, action, getUser(), request)) {
+        if(!checkTransportFilter(Category.SG_INDEX_ATTEMPT, action, getUser(), request)) {
             return;
         }
         
         final TransportAddress remoteAddress = getRemoteAddress();
-        final List<AuditMessage> msgs = RequestResolver.resolve(Category.SG_INDEX_ATTEMPT, getOrigin(), action, null, getUser(), false, null, remoteAddress, request, getThreadContextHeaders(), task, resolver, clusterService, settings, withRequestDetails, resolveBulkRequests, null);
+        final List<AuditMessage> msgs = RequestResolver.resolve(Category.SG_INDEX_ATTEMPT, getOrigin(), action, null, getUser(), false, null, remoteAddress, request, getThreadContextHeaders(), task, resolver, clusterService, settings, logRequestBody, resolveIndices, resolveBulkRequests, searchguardIndex, null);
         
         for(AuditMessage msg: msgs) {
             save(msg);
@@ -285,13 +335,13 @@ public abstract class AbstractAuditLog implements AuditLog {
     @Override
     public void logSSLException(TransportRequest request, Throwable t, String action, Task task) { 
         
-        if(!checkFilter(Category.SSL_EXCEPTION, action, getUser(), request)) {
+        if(!checkTransportFilter(Category.SSL_EXCEPTION, action, getUser(), request)) {
             return;
         }
         
         final TransportAddress remoteAddress = getRemoteAddress();
         final List<AuditMessage> msgs = RequestResolver.resolve(Category.SSL_EXCEPTION, getOrigin(), action, null, getUser(), false, null, remoteAddress, request, 
-                getThreadContextHeaders(), task, resolver, clusterService, settings, withRequestDetails, resolveBulkRequests, t);
+                getThreadContextHeaders(), task, resolver, clusterService, settings, logRequestBody, resolveIndices, resolveBulkRequests, searchguardIndex, t);
         
         for(AuditMessage msg: msgs) {
             save(msg);
@@ -301,14 +351,14 @@ public abstract class AbstractAuditLog implements AuditLog {
     @Override
     public void logSSLException(RestRequest request, Throwable t) {
         
-        if(!checkFilter(Category.SSL_EXCEPTION, getUser(), request)) {
+        if(!checkRestFilter(Category.SSL_EXCEPTION, getUser(), request)) {
             return;
         }
         
-        AuditMessage msg = new AuditMessage(Category.SSL_EXCEPTION, clusterService, getOrigin());
+        AuditMessage msg = new AuditMessage(Category.SSL_EXCEPTION, clusterService, getOrigin(), Origin.REST);
         TransportAddress remoteAddress = getRemoteAddress();
         msg.addRemoteAddress(remoteAddress);
-        if(request != null && withRequestDetails && request.hasContentOrSourceParam()) {
+        if(request != null && logRequestBody && request.hasContentOrSourceParam()) {
             msg.addBody(request.contentOrSourceParam());
         }
         
@@ -352,7 +402,7 @@ public abstract class AbstractAuditLog implements AuditLog {
         return threadPool.getThreadContext().getHeaders();
     }
     
-    private boolean checkFilter(final Category category, final String action, final String effectiveUser, TransportRequest request) {
+    private boolean checkTransportFilter(final Category category, final String action, final String effectiveUser, TransportRequest request) {
         
         if(log.isTraceEnabled()) {
             log.trace("Check category:{}, action:{}, effectiveUser:{}, request:{}", category, action, effectiveUser, request==null?null:request.getClass().getSimpleName());
@@ -387,7 +437,7 @@ public abstract class AbstractAuditLog implements AuditLog {
             return false;
         }
         
-        if (ignoreAuditUsers.length > 0 && WildcardMatcher.matchAny(ignoreAuditUsers, effectiveUser)) {
+        if (ignoreAuditUsers.size() > 0 && WildcardMatcher.matchAny(ignoreAuditUsers, effectiveUser)) {
             
             if(log.isTraceEnabled()) {
                 log.trace("Skipped audit log message because of user {} is ignored", effectiveUser);
@@ -396,7 +446,7 @@ public abstract class AbstractAuditLog implements AuditLog {
             return false;
         }
         
-        if (request != null && ignoreAuditRequests.length > 0 
+        if (request != null && ignoreAuditRequests.size() > 0 
                 && (WildcardMatcher.matchAny(ignoreAuditRequests, action) || WildcardMatcher.matchAny(ignoreAuditRequests, request.getClass().getSimpleName()))) {
             
             if(log.isTraceEnabled()) {
@@ -406,7 +456,7 @@ public abstract class AbstractAuditLog implements AuditLog {
             return false;
         }
         
-        if (!disabledCategories.contains(category.toString())) {
+        if (!disabledTransportCategories.contains(category.toString())) {
             return true;        
         } else {
             if(log.isTraceEnabled()) {
@@ -424,7 +474,7 @@ public abstract class AbstractAuditLog implements AuditLog {
 
     }
     
-    private boolean checkFilter(final Category category, final String effectiveUser, RestRequest request) {
+    private boolean checkRestFilter(final Category category, final String effectiveUser, RestRequest request) {
         
         if(log.isTraceEnabled()) {
             log.trace("Check for REST category:{}, effectiveUser:{}, request:{}", category, effectiveUser, request==null?null:request.path());
@@ -441,7 +491,7 @@ public abstract class AbstractAuditLog implements AuditLog {
             
         }
         
-        if (ignoreAuditUsers.length > 0 && WildcardMatcher.matchAny(ignoreAuditUsers, effectiveUser)) {
+        if (ignoreAuditUsers.size() > 0 && WildcardMatcher.matchAny(ignoreAuditUsers, effectiveUser)) {
             
             if(log.isTraceEnabled()) {
                 log.trace("Skipped audit log message because of user {} is ignored", effectiveUser);
@@ -450,7 +500,7 @@ public abstract class AbstractAuditLog implements AuditLog {
             return false;
         }
         
-        if (request != null && ignoreAuditRequests.length > 0 
+        if (request != null && ignoreAuditRequests.size() > 0 
                 && (WildcardMatcher.matchAny(ignoreAuditRequests, request.path()))) {
             
             if(log.isTraceEnabled()) {
@@ -460,7 +510,7 @@ public abstract class AbstractAuditLog implements AuditLog {
             return false;
         }
         
-        if (!disabledCategories.contains(category.toString())) {
+        if (!disabledRestCategories.contains(category.toString())) {
             return true;        
         } else {
             if(log.isTraceEnabled()) {

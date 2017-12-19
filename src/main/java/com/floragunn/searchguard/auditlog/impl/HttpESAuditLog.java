@@ -20,6 +20,8 @@ import java.security.KeyStore;
 import java.security.PrivateKey;
 import java.security.cert.X509Certificate;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.service.ClusterService;
@@ -36,11 +38,12 @@ import com.floragunn.searchguard.support.PemKeyReader;
 
 public final class HttpESAuditLog extends AuditLogSink {
 
+    private static final List<String> DEFAULT_TLS_PROTOCOLS = Arrays.asList(new String[] { "TLSv1.2", "TLSv1.1"});
 	// config in elasticsearch.yml
 	private final String index;
 	private final String type;
 	private final HttpClient client;
-	private final String[] servers;
+	private final List<String> servers;
 	private DateTimeFormatter indexPattern;
 	
     static final String PKCS12 = "PKCS12";
@@ -50,7 +53,7 @@ public final class HttpESAuditLog extends AuditLogSink {
 
 		super(settings, threadPool, resolver, clusterService);
 		
-		servers = settings.getAsArray(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_HTTP_ENDPOINTS, new String[] { "localhost:9200" });
+		servers = settings.getAsList(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_HTTP_ENDPOINTS, Collections.singletonList("localhost:9200"));
 		this.index = settings.get(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_INDEX, "'sg6-auditlog-'YYYY.MM.dd");
 		
 		try {
@@ -67,7 +70,7 @@ public final class HttpESAuditLog extends AuditLogSink {
 		final String user = settings.get(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_USERNAME);
 		final String password = settings.get(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_PASSWORD);
 
-		final HttpClientBuilder builder = HttpClient.builder(servers);
+		final HttpClientBuilder builder = HttpClient.builder(servers.toArray(new String[0]));
 
 		if (enableSsl) {
 		    
@@ -135,11 +138,11 @@ public final class HttpESAuditLog extends AuditLogSink {
                 
             }   
 		    
-		    final String[] enabledCipherSuites = settings.getAsArray(ConfigConstants.SEARCHGUARD_AUDIT_SSL_ENABLED_SSL_CIPHERS, null);   
-            final String[] enabledProtocols = settings.getAsArray(ConfigConstants.SEARCHGUARD_AUDIT_SSL_ENABLED_SSL_PROTOCOLS, new String[] { "TLSv1.2", "TLSv1.1"});   
+		    final List<String> enabledCipherSuites = settings.getAsList(ConfigConstants.SEARCHGUARD_AUDIT_SSL_ENABLED_SSL_CIPHERS, null);   
+            final List<String> enabledProtocols = settings.getAsList(ConfigConstants.SEARCHGUARD_AUDIT_SSL_ENABLED_SSL_PROTOCOLS, DEFAULT_TLS_PROTOCOLS);   
             
-            builder.setSupportedCipherSuites(enabledCipherSuites);
-            builder.setSupportedProtocols(enabledProtocols);
+            builder.setSupportedCipherSuites(enabledCipherSuites==null?null:enabledCipherSuites.toArray(new String[0]));
+            builder.setSupportedProtocols(enabledProtocols.toArray(new String[0]));
 		    
             builder.enableSsl(effectiveTruststore, verifyHostnames); //trust all aliases
 
@@ -168,7 +171,7 @@ public final class HttpESAuditLog extends AuditLogSink {
 			boolean successful = client.index(msg.toString(), getExpandedIndexName(indexPattern, index), type, true);
 
 			if (!successful) {
-				log.error("Unable to send audit log {} to one of these servers: {}", msg, Arrays.toString(servers));
+				log.error("Unable to send audit log {} to one of these servers: {}", msg, servers);
 			}
 		} catch (Exception e) {
 			log.error("Unable to send audit log {} due to", msg, e);

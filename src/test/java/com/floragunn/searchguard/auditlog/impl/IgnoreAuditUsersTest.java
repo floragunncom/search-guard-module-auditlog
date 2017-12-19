@@ -82,8 +82,8 @@ public class IgnoreAuditUsersTest {
         Settings settings = Settings.builder()
                 .put("searchguard.audit.ignore_users", nonIgnoreUser)
                 .put("searchguard.audit.type", TestAuditlogImpl.class.getName())
-                .put("searchguard.audit.enable_request_details", true)
-                .put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_TRANSPORT, true)
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_TRANSPORT_CATEGORIES, "NONE")
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_REST_CATEGORIES, "NONE")
                 .put("searchguard.audit.threadpool.size", 0)
                 .build();
         AbstractAuditLog al = new AuditLogImpl(settings, null, null, newThreadPool(ConfigConstants.SG_USER, ignoreUserObj), null, cs);        
@@ -96,8 +96,8 @@ public class IgnoreAuditUsersTest {
     public void testNonExistingIgnoreUser() {
         Settings settings = Settings.builder()
                 .put("searchguard.audit.type", TestAuditlogImpl.class.getName())
-                .put("searchguard.audit.enable_request_details", true)
-                .put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_TRANSPORT, true)
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_TRANSPORT_CATEGORIES, "NONE")
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_REST_CATEGORIES, "NONE")
                 .put("searchguard.audit.threadpool.size", 0)
                 .build();
         AbstractAuditLog al = new AuditLogImpl(settings, null, null, newThreadPool(ConfigConstants.SG_USER, ignoreUserObj), null, cs);        
@@ -124,7 +124,7 @@ public class IgnoreAuditUsersTest {
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_TRANSPORT, true)
                 .put("searchguard.audit.enable_request_details", true)
                 .put("searchguard.audit.threadpool.size", 0)
-                .putArray("searchguard.audit.ignore_users", "*")
+                .putList("searchguard.audit.ignore_users", "*")
                 .build();
         
         TransportAddress ta = new TransportAddress(new InetSocketAddress("8.8.8.8",80));
@@ -139,10 +139,10 @@ public class IgnoreAuditUsersTest {
         
         settings = Settings.builder()
                 .put("searchguard.audit.type", TestAuditlogImpl.class.getName())
-                .put("searchguard.audit.enable_request_details", true)
-                .put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_TRANSPORT, true)
                 .put("searchguard.audit.threadpool.size", 0)
-                .putArray("searchguard.audit.ignore_users", "xxx")
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_TRANSPORT_CATEGORIES, "NONE")
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_REST_CATEGORIES, "NONE")
+                .putList("searchguard.audit.ignore_users", "xxx")
                 .build();
         al = new AuditLogImpl(settings, null, null, newThreadPool(ConfigConstants.SG_REMOTE_ADDRESS, ta,
                 ConfigConstants.SG_USER, new User("John Doe"),
@@ -154,10 +154,10 @@ public class IgnoreAuditUsersTest {
         
         settings = Settings.builder()
                 .put("searchguard.audit.type", TestAuditlogImpl.class.getName())
-                .put("searchguard.audit.enable_request_details", true)
-                .put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_TRANSPORT, true)
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_TRANSPORT_CATEGORIES, "NONE")
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_REST_CATEGORIES, "NONE")
                 .put("searchguard.audit.threadpool.size", 0)
-                .putArray("searchguard.audit.ignore_users", "John Doe","Capatin Kirk")
+                .putList("searchguard.audit.ignore_users", "John Doe","Capatin Kirk")
                 .build();
         al = new AuditLogImpl(settings, null, null, newThreadPool(ConfigConstants.SG_REMOTE_ADDRESS, ta,
                 ConfigConstants.SG_USER, new User("John Doe"),
@@ -171,10 +171,10 @@ public class IgnoreAuditUsersTest {
         
         settings = Settings.builder()
                 .put("searchguard.audit.type", TestAuditlogImpl.class.getName())
-                .put("searchguard.audit.enable_request_details", true)
-                .put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_TRANSPORT, true)
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_TRANSPORT_CATEGORIES, "NONE")
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_REST_CATEGORIES, "NONE")
                 .put("searchguard.audit.threadpool.size", 0)
-                .putArray("searchguard.audit.ignore_users", "Wil Riker","Capatin Kirk")
+                .putList("searchguard.audit.ignore_users", "Wil Riker","Capatin Kirk")
                 .build();
         al = new AuditLogImpl(settings, null, null, newThreadPool(ConfigConstants.SG_REMOTE_ADDRESS, ta,
                 ConfigConstants.SG_USER, new User("John Doe"),

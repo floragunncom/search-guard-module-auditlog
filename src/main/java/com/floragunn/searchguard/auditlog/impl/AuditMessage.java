@@ -58,17 +58,17 @@ public final class AuditMessage {
     public static final String REMOTE_ADDRESS = "audit_request_remote_address";
     
     public static final String REST_REQUEST_PATH = "audit_rest_request_path";
-    public static final String REST_REQUEST_BODY = "audit_rest_request_body";
+    //public static final String REST_REQUEST_BODY = "audit_rest_request_body";
     public static final String REST_REQUEST_PARAMS = "audit_rest_request_params";
     public static final String REST_REQUEST_HEADERS = "audit_rest_request_headers";
     
-    public static final String REQUEST_TYPE = "audit_transport_request_type";
-    public static final String ACTION = "audit_transport_action";
+    public static final String TRANSPORT_REQUEST_TYPE = "audit_transport_request_type";
+    public static final String TRANSPORT_ACTION = "audit_transport_action";
     public static final String TRANSPORT_REQUEST_HEADERS = "audit_transport_headers";
     
     public static final String ID = "audit_trace_doc_id";
     public static final String TYPES = "audit_trace_doc_types";
-    public static final String SOURCE = "audit_trace_doc_source";
+    //public static final String SOURCE = "audit_trace_doc_source";
     public static final String INDICES = "audit_trace_indices";
     public static final String SHARD_ID = "audit_trace_shard_id";
     public static final String RESOLVED_INDICES = "audit_trace_resolved_indices";
@@ -79,12 +79,15 @@ public final class AuditMessage {
     
     public static final String TASK_ID = "audit_trace_task_id";
     public static final String TASK_PARENT_ID = "audit_trace_task_parent_id";
+    
+    public static final String REQUEST_BODY = "audit_request_body";
+    public static final String REQUEST_LAYER = "audit_request_layer";
 
     private static final DateTimeFormatter DEFAULT_FORMAT = DateTimeFormat.forPattern("yyyy-MM-dd'T'HH:mm:ss.SSSZZ");
     private final Map<String, Object> auditInfo = new HashMap<String, Object>(50);
     private final Category msgCategory;
 
-    public AuditMessage(final Category msgCategory, final ClusterService clusterService, final Origin origin) {
+    public AuditMessage(final Category msgCategory, final ClusterService clusterService, final Origin origin, final Origin layer) {
         this.msgCategory = Objects.requireNonNull(msgCategory);
         final String currentTime = currentTime();
         auditInfo.put(FORMAT_VERSION, 3);
@@ -97,6 +100,10 @@ public final class AuditMessage {
         
         if(origin != null) {
             auditInfo.put(ORIGIN, origin);
+        }
+        
+        if(layer != null) {
+            auditInfo.put(REQUEST_LAYER, layer);
         }
     }
     
@@ -143,22 +150,22 @@ public final class AuditMessage {
     public void addBody(Tuple<XContentType, BytesReference> xContentTuple) {
         if (xContentTuple != null) {
             try {
-                auditInfo.put(REST_REQUEST_BODY, XContentHelper.convertToJson(xContentTuple.v2(), false, xContentTuple.v1()));
+                auditInfo.put(REQUEST_BODY, XContentHelper.convertToJson(xContentTuple.v2(), false, xContentTuple.v1()));
             } catch (Exception e) {
-                auditInfo.put(REST_REQUEST_BODY, e.toString());
+                auditInfo.put(REQUEST_BODY, e.toString());
             }
         }
     }
 
     public void addRequestType(String requestType) {
         if (requestType != null) {
-            auditInfo.put(REQUEST_TYPE, requestType);
+            auditInfo.put(TRANSPORT_REQUEST_TYPE, requestType);
         }
     }
 
     public void addAction(String action) {
         if (action != null) {
-            auditInfo.put(ACTION, action);
+            auditInfo.put(TRANSPORT_ACTION, action);
         }
     }
 
@@ -182,7 +189,7 @@ public final class AuditMessage {
 
     public void addSource(String source) {
         if (source != null) {
-            auditInfo.put(SOURCE, source);
+            auditInfo.put(REQUEST_BODY, source);
         }
     }
 
@@ -254,7 +261,7 @@ public final class AuditMessage {
     }
 
     public String getRequestType() {
-        return (String) this.auditInfo.get(REQUEST_TYPE);
+        return (String) this.auditInfo.get(TRANSPORT_REQUEST_TYPE);
     }
 
 	public Category getCategory() {
