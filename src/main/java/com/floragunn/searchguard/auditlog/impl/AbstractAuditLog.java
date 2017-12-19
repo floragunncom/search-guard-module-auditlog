@@ -15,7 +15,9 @@
 package com.floragunn.searchguard.auditlog.impl;
 
 import java.net.InetSocketAddress;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -52,14 +54,14 @@ public abstract class AbstractAuditLog implements AuditLog {
     protected final boolean logRequestBody;
     protected final boolean resolveIndices;
 
-    private String[] ignoreAuditUsers;
-    private final String[] ignoreAuditRequests;
+    private List<String> ignoreAuditUsers;
+    private final List<String> ignoreAuditRequests;
     private final List<String> disabledRestCategories;
     private final List<String> disabledTransportCategories;
-    private final String[] defaultDisabledCategories = 
-            new String[]{Category.AUTHENTICATED.toString(), Category.GRANTED_PRIVILEGES.toString()};
-    private final String[] defaultIgnoredUsers = 
-            new String[]{"kibanaserver"};
+    private final List<String> defaultDisabledCategories = 
+            Arrays.asList(new String[]{Category.AUTHENTICATED.toString(), Category.GRANTED_PRIVILEGES.toString()});
+    private final List<String> defaultIgnoredUsers = 
+            Arrays.asList(new String[]{"kibanaserver"});
     
     private final String searchguardIndex;
 
@@ -78,8 +80,8 @@ public abstract class AbstractAuditLog implements AuditLog {
         restAuditingEnabled = settings.getAsBoolean(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_REST, true);
         transportAuditingEnabled = settings.getAsBoolean(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_TRANSPORT, true);
         
-        disabledRestCategories = Arrays.stream(settings.getAsArray(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_REST_CATEGORIES, defaultDisabledCategories))
-                .map(c->c.toUpperCase()).collect(Collectors.toList());
+        disabledRestCategories = new ArrayList<>(settings.getAsList(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_REST_CATEGORIES, defaultDisabledCategories).stream()
+                .map(c->c.toUpperCase()).collect(Collectors.toList()));
         
         if(disabledRestCategories.size() == 1 && "NONE".equals(disabledRestCategories.get(0))) {
             disabledRestCategories.clear();
@@ -89,8 +91,8 @@ public abstract class AbstractAuditLog implements AuditLog {
             log.info("Configured categories on rest layer to ignore: {}", disabledRestCategories);
         }
         
-        disabledTransportCategories = Arrays.stream(settings.getAsArray(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_TRANSPORT_CATEGORIES, defaultDisabledCategories))
-                .map(c->c.toUpperCase()).collect(Collectors.toList());
+        disabledTransportCategories = new ArrayList<>(settings.getAsList(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_TRANSPORT_CATEGORIES, defaultDisabledCategories).stream()
+                .map(c->c.toUpperCase()).collect(Collectors.toList()));
         
         if(disabledTransportCategories.size() == 1 && "NONE".equals(disabledTransportCategories.get(0))) {
             disabledTransportCategories.clear();
@@ -103,19 +105,19 @@ public abstract class AbstractAuditLog implements AuditLog {
         logRequestBody = settings.getAsBoolean(ConfigConstants.SEARCHGUARD_AUDIT_LOG_REQUEST_BODY, true);
         resolveIndices = settings.getAsBoolean(ConfigConstants.SEARCHGUARD_AUDIT_RESOLVE_INDICES, true);
         
-        ignoreAuditUsers = settings.getAsArray(ConfigConstants.SEARCHGUARD_AUDIT_IGNORE_USERS, defaultIgnoredUsers);
+        ignoreAuditUsers = new ArrayList<>(settings.getAsList(ConfigConstants.SEARCHGUARD_AUDIT_IGNORE_USERS, defaultIgnoredUsers));
         
-        if(ignoreAuditUsers.length == 1 && "NONE".equals(ignoreAuditUsers[0])) {
-            ignoreAuditUsers = new String[0];
+        if(ignoreAuditUsers.size() == 1 && "NONE".equals(ignoreAuditUsers.get(0))) {
+            ignoreAuditUsers.clear();
         }
         
-        if (ignoreAuditUsers.length > 0) {
-            log.info("Configured Users to ignore: {}", Arrays.toString(ignoreAuditUsers));
+        if (ignoreAuditUsers.size() > 0) {
+            log.info("Configured Users to ignore: {}", ignoreAuditUsers);
         }
         
-        ignoreAuditRequests = settings.getAsArray(ConfigConstants.SEARCHGUARD_AUDIT_IGNORE_REQUESTS, new String[]{});
-        if (ignoreAuditUsers.length > 0) {
-            log.info("Configured Requests to ignore: {}", Arrays.toString(ignoreAuditRequests));
+        ignoreAuditRequests = settings.getAsList(ConfigConstants.SEARCHGUARD_AUDIT_IGNORE_REQUESTS, Collections.emptyList());
+        if (ignoreAuditUsers.size() > 0) {
+            log.info("Configured Requests to ignore: {}", ignoreAuditRequests);
         }
         
         // check if some categories are invalid
@@ -435,7 +437,7 @@ public abstract class AbstractAuditLog implements AuditLog {
             return false;
         }
         
-        if (ignoreAuditUsers.length > 0 && WildcardMatcher.matchAny(ignoreAuditUsers, effectiveUser)) {
+        if (ignoreAuditUsers.size() > 0 && WildcardMatcher.matchAny(ignoreAuditUsers, effectiveUser)) {
             
             if(log.isTraceEnabled()) {
                 log.trace("Skipped audit log message because of user {} is ignored", effectiveUser);
@@ -444,7 +446,7 @@ public abstract class AbstractAuditLog implements AuditLog {
             return false;
         }
         
-        if (request != null && ignoreAuditRequests.length > 0 
+        if (request != null && ignoreAuditRequests.size() > 0 
                 && (WildcardMatcher.matchAny(ignoreAuditRequests, action) || WildcardMatcher.matchAny(ignoreAuditRequests, request.getClass().getSimpleName()))) {
             
             if(log.isTraceEnabled()) {
@@ -489,7 +491,7 @@ public abstract class AbstractAuditLog implements AuditLog {
             
         }
         
-        if (ignoreAuditUsers.length > 0 && WildcardMatcher.matchAny(ignoreAuditUsers, effectiveUser)) {
+        if (ignoreAuditUsers.size() > 0 && WildcardMatcher.matchAny(ignoreAuditUsers, effectiveUser)) {
             
             if(log.isTraceEnabled()) {
                 log.trace("Skipped audit log message because of user {} is ignored", effectiveUser);
@@ -498,7 +500,7 @@ public abstract class AbstractAuditLog implements AuditLog {
             return false;
         }
         
-        if (request != null && ignoreAuditRequests.length > 0 
+        if (request != null && ignoreAuditRequests.size() > 0 
                 && (WildcardMatcher.matchAny(ignoreAuditRequests, request.path()))) {
             
             if(log.isTraceEnabled()) {

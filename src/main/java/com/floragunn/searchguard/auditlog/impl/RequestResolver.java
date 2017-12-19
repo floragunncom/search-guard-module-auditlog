@@ -14,6 +14,7 @@
 
 package com.floragunn.searchguard.auditlog.impl;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -43,6 +44,9 @@ import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.TransportAddress;
+import org.elasticsearch.common.xcontent.ToXContent;
+import org.elasticsearch.common.xcontent.XContentBuilder;
+import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.common.xcontent.XContentHelper;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.index.Index;
@@ -254,14 +258,27 @@ public final class RequestResolver {
             final String[] indices = arrayOrEmpty(sr.indices());
             final String[] types = arrayOrEmpty(sr.types());
             msg.addTypes(types);
-            addIndicesSourceSafe(msg, indices, resolver, cs, sr.source() == null? null:sr.source().buildAsBytes(), settings, resolveIndices, logRequestBody, false, searchguardIndex);
+            XContentBuilder builder = null;
+            try {
+                if(sr.source() != null) {
+                    builder = XContentFactory.jsonBuilder();
+                    sr.source().toXContent(builder, ToXContent.EMPTY_PARAMS);
+                }
+            } catch (IOException e) {
+                builder = null;
+            } finally {
+                if(builder != null) {
+                    builder.close();
+                }
+            }
+            addIndicesSourceSafe(msg, indices, resolver, cs, builder == null? null:builder.bytes(), settings, resolveIndices, logRequestBody, false, searchguardIndex);
         } else if (request instanceof ClusterUpdateSettingsRequest) {
             if(logRequestBody) {
                 final ClusterUpdateSettingsRequest cusr = (ClusterUpdateSettingsRequest) request;
                 final Settings persistentSettings = cusr.persistentSettings();
                 final Settings transientSettings = cusr.transientSettings();
-                msg.addSource("persistent: "+String.valueOf(persistentSettings == null?Collections.EMPTY_MAP:persistentSettings.getAsMap())
-                             +";transient: "+String.valueOf(transientSettings == null?Collections.EMPTY_MAP:transientSettings.getAsMap()));  
+                msg.addSource("persistent: "+String.valueOf(persistentSettings == null?Collections.EMPTY_MAP:persistentSettings.toString())
+                             +";transient: "+String.valueOf(transientSettings == null?Collections.EMPTY_MAP:transientSettings.toString()));  
             }
         } else if (request instanceof ReindexRequest) {
             final IndexRequest ir = ((ReindexRequest) request).getDestination();
@@ -306,7 +323,7 @@ public final class RequestResolver {
         
         return msg;
     }
-
+    
     private static void addIndicesSourceSafe(final AuditMessage msg, 
             final String[] indices, 
             final IndexNameExpressionResolver resolver, 

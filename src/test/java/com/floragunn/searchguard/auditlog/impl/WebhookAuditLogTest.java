@@ -465,13 +465,13 @@ public class WebhookAuditLogTest {
 			final TrustManagerFactory tmf = TrustManagerFactory.getInstance(TrustManagerFactory
 					.getDefaultAlgorithm());
 			final KeyStore trustStore = KeyStore.getInstance("JKS");
-			InputStream trustStream = new FileInputStream(FileHelper.getAbsoluteFilePathFromClassPath("truststore.jks"));
+			InputStream trustStream = new FileInputStream(FileHelper.getAbsoluteFilePathFromClassPath("truststore.jks").toFile());
 			trustStore.load(trustStream, "changeit".toCharArray());
 			tmf.init(trustStore);
 
 			final KeyManagerFactory kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());			
 			final KeyStore keyStore = KeyStore.getInstance("JKS");
-			InputStream keyStream = new FileInputStream(FileHelper.getAbsoluteFilePathFromClassPath("node-0-keystore.jks"));
+			InputStream keyStream = new FileInputStream(FileHelper.getAbsoluteFilePathFromClassPath("node-0-keystore.jks").toFile());
 
 			keyStore.load(keyStream, "changeit".toCharArray());
 			kmf.init(keyStore, "changeit".toCharArray());
