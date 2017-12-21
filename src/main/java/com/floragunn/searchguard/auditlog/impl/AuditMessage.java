@@ -207,7 +207,7 @@ public final class AuditMessage {
     }
     
     public void addTaskId(long id) {
-         auditInfo.put(TASK_ID, id);
+         auditInfo.put(TASK_ID, auditInfo.get(NODE_ID)+":"+id);
     }
     
     public void addShardId(ShardId id) {

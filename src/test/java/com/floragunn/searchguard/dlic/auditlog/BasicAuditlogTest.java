@@ -366,6 +366,7 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
         Assert.assertTrue(TestAuditlogImpl.sb.toString(), TestAuditlogImpl.sb.toString().contains("indices:data/read/msearch"));
         Assert.assertTrue(TestAuditlogImpl.sb.toString(), TestAuditlogImpl.sb.toString().contains("indices:data/read/search"));
         Assert.assertTrue(TestAuditlogImpl.sb.toString(), TestAuditlogImpl.sb.toString().contains("match_all"));
+        Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("audit_trace_task_id"));
         Assert.assertEquals(TestAuditlogImpl.sb.toString(), 4, TestAuditlogImpl.messages.size());
         Assert.assertFalse(TestAuditlogImpl.sb.toString().toLowerCase().contains("authorization"));
 	}
@@ -388,15 +389,15 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
                 
 
         HttpResponse response = rh.executePostRequest("_bulk", bulkBody, encodeBasicHeader("admin", "admin"));
-        System.out.println(response.getBody());
-
+        System.out.println(TestAuditlogImpl.sb.toString());
         Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());  
         Assert.assertTrue(response.getBody().contains("\"errors\":false"));
         Assert.assertTrue(response.getBody().contains("\"status\":201"));                   
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("indices:admin/create"));
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("indices:data/write/bulk"));
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("IndexRequest"));
-        System.out.println(TestAuditlogImpl.sb.toString());
+        Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("audit_trace_task_parent_id"));
+        Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("audit_trace_task_id"));
         //may vary because we log shardrequests which are not predictable here
         Assert.assertTrue(TestAuditlogImpl.messages.size() >= 17); 
     }
