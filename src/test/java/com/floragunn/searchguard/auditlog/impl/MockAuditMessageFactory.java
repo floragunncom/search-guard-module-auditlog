@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 by floragunn UG (haftungsbeschränkt) - All rights reserved
+ * Copyright 2016-2017 by floragunn GmbH - All rights reserved
  * 
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -48,7 +48,7 @@ public class MockAuditMessageFactory {
 		//tc.putTransient(ConfigConstants.SG_REMOTE_ADDRESS, "8.8.8.8");
 		//tc.putTransient(ConfigConstants.SG_SSL_TRANSPORT_PRINCIPAL, "CN=kirk,OU=client,O=client,L=test,C=DE");
 		
-		AuditMessage msg = new AuditMessage(category, cs, Origin.TRANSPORT);
+		AuditMessage msg = new AuditMessage(category, cs, Origin.TRANSPORT, Origin.TRANSPORT);
 		msg.addEffectiveUser("John Doe");
 		msg.addRemoteAddress(ta);
 		msg.addRequestType("IndexRequest");

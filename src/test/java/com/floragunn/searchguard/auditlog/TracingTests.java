@@ -1,3 +1,17 @@
+/*
+ * Copyright 2016-2017 by floragunn GmbH - All rights reserved
+ * 
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed here is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * 
+ * This software is free of charge for non-commercial and academic use. 
+ * For commercial use in a production environment you have to obtain a license 
+ * from https://floragunn.com
+ * 
+ */
+
 package com.floragunn.searchguard.auditlog;
 
 import java.lang.Thread.UncaughtExceptionHandler;
@@ -28,7 +42,6 @@ public class TracingTests extends SingleClusterTest {
         
         final Settings settings = Settings.builder()
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_TYPE, "log4j")
-                .put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_REQUEST_DETAILS, true)
                 .put("searchguard.audit.resolve_bulk_requests", true)
                 .put("searchguard.audit.config.log4j.logger_name", "sg_action_trace")
                 .put("searchguard.audit.config.log4j.level", "TRACE")
@@ -203,7 +216,7 @@ public class TracingTests extends SingleClusterTest {
         });
         
     final Settings settings = Settings.builder()
-            .putArray(ConfigConstants.SEARCHGUARD_AUTHCZ_REST_IMPERSONATION_USERS+".worf", "knuddel","nonexists")
+            .putList(ConfigConstants.SEARCHGUARD_AUTHCZ_REST_IMPERSONATION_USERS+".worf", "knuddel","nonexists")
             .build();
     setup(settings);
     final RestHelper rh = nonSslRestHelper();
@@ -269,7 +282,7 @@ public class TracingTests extends SingleClusterTest {
         });
         
     final Settings settings = Settings.builder()
-            .putArray(ConfigConstants.SEARCHGUARD_AUTHCZ_REST_IMPERSONATION_USERS+".worf", "knuddel","nonexists")
+            .putList(ConfigConstants.SEARCHGUARD_AUTHCZ_REST_IMPERSONATION_USERS+".worf", "knuddel","nonexists")
             .build();
     setup(settings);
     final RestHelper rh = nonSslRestHelper();

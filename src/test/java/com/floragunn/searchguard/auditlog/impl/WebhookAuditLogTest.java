@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 by floragunn UG (haftungsbeschränkt) - All rights reserved
+ * Copyright 2016-2017 by floragunn GmbH - All rights reserved
  * 
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -465,13 +465,13 @@ public class WebhookAuditLogTest {
 			final TrustManagerFactory tmf = TrustManagerFactory.getInstance(TrustManagerFactory
 					.getDefaultAlgorithm());
 			final KeyStore trustStore = KeyStore.getInstance("JKS");
-			InputStream trustStream = new FileInputStream(FileHelper.getAbsoluteFilePathFromClassPath("truststore.jks"));
+			InputStream trustStream = new FileInputStream(FileHelper.getAbsoluteFilePathFromClassPath("truststore.jks").toFile());
 			trustStore.load(trustStream, "changeit".toCharArray());
 			tmf.init(trustStore);
 
 			final KeyManagerFactory kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());			
 			final KeyStore keyStore = KeyStore.getInstance("JKS");
-			InputStream keyStream = new FileInputStream(FileHelper.getAbsoluteFilePathFromClassPath("node-0-keystore.jks"));
+			InputStream keyStream = new FileInputStream(FileHelper.getAbsoluteFilePathFromClassPath("node-0-keystore.jks").toFile());
 
 			keyStore.load(keyStream, "changeit".toCharArray());
 			kmf.init(keyStore, "changeit".toCharArray());
@@ -485,12 +485,14 @@ public class WebhookAuditLogTest {
 	}
 
 	private void assertStringContainsAllKeysAndValues(String in) {
+	    System.out.println(in);
 		Assert.assertTrue(in, in.contains(AuditMessage.FORMAT_VERSION));
 		Assert.assertTrue(in, in.contains(AuditMessage.CATEGORY));
 		Assert.assertTrue(in, in.contains(AuditMessage.FORMAT_VERSION));
 		Assert.assertTrue(in, in.contains(AuditMessage.REMOTE_ADDRESS));
 		Assert.assertTrue(in, in.contains(AuditMessage.ORIGIN));
-		Assert.assertTrue(in, in.contains(AuditMessage.REQUEST_TYPE));
+		Assert.assertTrue(in, in.contains(AuditMessage.REQUEST_LAYER));
+		Assert.assertTrue(in, in.contains(AuditMessage.TRANSPORT_REQUEST_TYPE));
 		Assert.assertTrue(in, in.contains(AuditMessage.UTC_TIMESTAMP));
 		Assert.assertTrue(in, in.contains(Category.FAILED_LOGIN.name()));
 		Assert.assertTrue(in, in.contains("FAILED_LOGIN"));

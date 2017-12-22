@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 by floragunn UG (haftungsbeschränkt) - All rights reserved
+ * Copyright 2016-2017 by floragunn GmbH - All rights reserved
  * 
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -15,12 +15,12 @@
 package com.floragunn.searchguard.auditlog.impl;
 
 import java.io.IOException;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 import org.apache.http.client.utils.URIBuilder;
 import org.elasticsearch.ExceptionsHelper;
@@ -42,6 +42,7 @@ import com.floragunn.searchguard.auditlog.AuditLog.Origin;
 
 public final class AuditMessage {
     
+    private static final String AUTHORIZATION_HEADER = "Authorization";
     public static final String FORMAT_VERSION = "audit_format_version";
     public static final String CATEGORY = "audit_category";
     public static final String REQUEST_EFFECTIVE_USER = "audit_request_effective_user";
@@ -57,17 +58,17 @@ public final class AuditMessage {
     public static final String REMOTE_ADDRESS = "audit_request_remote_address";
     
     public static final String REST_REQUEST_PATH = "audit_rest_request_path";
-    public static final String REST_REQUEST_BODY = "audit_rest_request_body";
+    //public static final String REST_REQUEST_BODY = "audit_rest_request_body";
     public static final String REST_REQUEST_PARAMS = "audit_rest_request_params";
     public static final String REST_REQUEST_HEADERS = "audit_rest_request_headers";
     
-    public static final String REQUEST_TYPE = "audit_transport_request_type";
-    public static final String ACTION = "audit_transport_action";
+    public static final String TRANSPORT_REQUEST_TYPE = "audit_transport_request_type";
+    public static final String TRANSPORT_ACTION = "audit_transport_action";
     public static final String TRANSPORT_REQUEST_HEADERS = "audit_transport_headers";
     
     public static final String ID = "audit_trace_doc_id";
     public static final String TYPES = "audit_trace_doc_types";
-    public static final String SOURCE = "audit_trace_doc_source";
+    //public static final String SOURCE = "audit_trace_doc_source";
     public static final String INDICES = "audit_trace_indices";
     public static final String SHARD_ID = "audit_trace_shard_id";
     public static final String RESOLVED_INDICES = "audit_trace_resolved_indices";
@@ -78,12 +79,15 @@ public final class AuditMessage {
     
     public static final String TASK_ID = "audit_trace_task_id";
     public static final String TASK_PARENT_ID = "audit_trace_task_parent_id";
+    
+    public static final String REQUEST_BODY = "audit_request_body";
+    public static final String REQUEST_LAYER = "audit_request_layer";
 
     private static final DateTimeFormatter DEFAULT_FORMAT = DateTimeFormat.forPattern("yyyy-MM-dd'T'HH:mm:ss.SSSZZ");
     private final Map<String, Object> auditInfo = new HashMap<String, Object>(50);
     private final Category msgCategory;
 
-    public AuditMessage(final Category msgCategory, final ClusterService clusterService, final Origin origin) {
+    public AuditMessage(final Category msgCategory, final ClusterService clusterService, final Origin origin, final Origin layer) {
         this.msgCategory = Objects.requireNonNull(msgCategory);
         final String currentTime = currentTime();
         auditInfo.put(FORMAT_VERSION, 3);
@@ -96,6 +100,10 @@ public final class AuditMessage {
         
         if(origin != null) {
             auditInfo.put(ORIGIN, origin);
+        }
+        
+        if(layer != null) {
+            auditInfo.put(REQUEST_LAYER, layer);
         }
     }
     
@@ -142,22 +150,22 @@ public final class AuditMessage {
     public void addBody(Tuple<XContentType, BytesReference> xContentTuple) {
         if (xContentTuple != null) {
             try {
-                auditInfo.put(REST_REQUEST_BODY, XContentHelper.convertToJson(xContentTuple.v2(), false, xContentTuple.v1()));
+                auditInfo.put(REQUEST_BODY, XContentHelper.convertToJson(xContentTuple.v2(), false, xContentTuple.v1()));
             } catch (Exception e) {
-                auditInfo.put(REST_REQUEST_BODY, e.toString());
+                auditInfo.put(REQUEST_BODY, e.toString());
             }
         }
     }
 
     public void addRequestType(String requestType) {
         if (requestType != null) {
-            auditInfo.put(REQUEST_TYPE, requestType);
+            auditInfo.put(TRANSPORT_REQUEST_TYPE, requestType);
         }
     }
 
     public void addAction(String action) {
         if (action != null) {
-            auditInfo.put(ACTION, action);
+            auditInfo.put(TRANSPORT_ACTION, action);
         }
     }
 
@@ -181,7 +189,7 @@ public final class AuditMessage {
 
     public void addSource(String source) {
         if (source != null) {
-            auditInfo.put(SOURCE, source);
+            auditInfo.put(REQUEST_BODY, source);
         }
     }
 
@@ -199,7 +207,7 @@ public final class AuditMessage {
     }
     
     public void addTaskId(long id) {
-         auditInfo.put(TASK_ID, id);
+         auditInfo.put(TASK_ID, auditInfo.get(NODE_ID)+":"+id);
     }
     
     public void addShardId(ShardId id) {
@@ -222,13 +230,21 @@ public final class AuditMessage {
     
     public void addRestHeaders(Map<String,List<String>> headers) {
         if(headers != null && !headers.isEmpty()) {
-             auditInfo.put(REST_REQUEST_HEADERS, new HashMap<>(headers));
+            final Map<String, List<String>> headersClone = new HashMap<String, List<String>>(headers)
+                    .entrySet().stream()
+                    .filter(map -> !map.getKey().equalsIgnoreCase(AUTHORIZATION_HEADER))
+                    .collect(Collectors.toMap(p -> p.getKey(), p -> p.getValue()));
+            auditInfo.put(REST_REQUEST_HEADERS, headersClone);
         }
     }
     
     public void addTransportHeaders(Map<String,String> headers) {
         if(headers != null && !headers.isEmpty()) {
-            auditInfo.put(TRANSPORT_REQUEST_HEADERS, new HashMap<>(headers));
+            final Map<String,String> headersClone = new HashMap<String,String>(headers)
+                    .entrySet().stream()
+                    .filter(map -> !map.getKey().equalsIgnoreCase(AUTHORIZATION_HEADER))
+                    .collect(Collectors.toMap(p -> p.getKey(), p -> p.getValue()));
+            auditInfo.put(TRANSPORT_REQUEST_HEADERS, headersClone);
         }
     }
 
@@ -245,7 +261,7 @@ public final class AuditMessage {
     }
 
     public String getRequestType() {
-        return (String) this.auditInfo.get(REQUEST_TYPE);
+        return (String) this.auditInfo.get(TRANSPORT_REQUEST_TYPE);
     }
 
 	public Category getCategory() {
