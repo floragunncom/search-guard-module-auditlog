@@ -32,6 +32,7 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.threadpool.ThreadPool;
 
 import com.floragunn.searchguard.support.ConfigConstants;
+import com.floragunn.searchguard.support.SerializationHelper;
 
 public final class AuditLogImpl extends AbstractAuditLog {
     
@@ -83,8 +84,8 @@ public final class AuditLogImpl extends AbstractAuditLog {
     }
 
     public AuditLogImpl(final Settings settings, final Path configPath, Client clientProvider, ThreadPool threadPool,
-            final IndexNameExpressionResolver resolver, final ClusterService clusterService) {
-    	super(settings, threadPool, resolver, clusterService);
+            final IndexNameExpressionResolver resolver, final ClusterService clusterService, final SerializationHelper serializationHelper) {
+    	super(settings, threadPool, resolver, clusterService, serializationHelper);
         final String type = settings.get(ConfigConstants.SEARCHGUARD_AUDIT_TYPE, null);
         int threadPoolSize = settings.getAsInt(ConfigConstants.SEARCHGUARD_AUDIT_THREADPOOL_SIZE, DEFAULT_THREAD_POOL_SIZE).intValue();
         int threadPoolMaxQueueLen = settings.getAsInt(ConfigConstants.SEARCHGUARD_AUDIT_THREADPOOL_MAX_QUEUE_LEN, DEFAULT_THREAD_POOL_MAX_QUEUE_LEN).intValue();

@@ -50,7 +50,7 @@ public class AuditlogTest {
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_TRANSPORT_CATEGORIES, "NONE")
                 .put("searchguard.audit.threadpool.size", 0)
                 .build();
-        AbstractAuditLog al = new AuditLogImpl(settings, null, null, AbstractSGUnitTest.MOCK_POOL, null, cs);
+        AbstractAuditLog al = new AuditLogImpl(settings, null, null, AbstractSGUnitTest.MOCK_POOL, null, cs, null);
         TestAuditlogImpl.clear();
         al.logGrantedPrivileges("indices:data/read/search", new ClusterHealthRequest(), null);
         Assert.assertEquals(1, TestAuditlogImpl.messages.size());
@@ -68,7 +68,7 @@ public class AuditlogTest {
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_TRANSPORT_CATEGORIES, "NONE")
                 .put("searchguard.audit.threadpool.size", 0)
                 .build();
-        AbstractAuditLog al = new AuditLogImpl(settings, null,  null, AbstractSGUnitTest.MOCK_POOL, null, cs);
+        AbstractAuditLog al = new AuditLogImpl(settings, null,  null, AbstractSGUnitTest.MOCK_POOL, null, cs, null);
         TestAuditlogImpl.clear();
         al.logGrantedPrivileges("indices:data/read/search", sr, null);
         Assert.assertEquals(1, TestAuditlogImpl.messages.size());
@@ -84,7 +84,7 @@ public class AuditlogTest {
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_RESOLVE_BULK_REQUESTS, true)
                 .put("searchguard.audit.threadpool.size", 0)
                 .build();
-        AbstractAuditLog al = new AuditLogImpl(settings, null,  null, AbstractSGUnitTest.MOCK_POOL, null, cs);
+        AbstractAuditLog al = new AuditLogImpl(settings, null,  null, AbstractSGUnitTest.MOCK_POOL, null, cs, null);
         TestAuditlogImpl.clear();
         al.logSSLException(null, new Exception("test rest"));
         al.logSSLException(null, new Exception("test rest"), null, null);

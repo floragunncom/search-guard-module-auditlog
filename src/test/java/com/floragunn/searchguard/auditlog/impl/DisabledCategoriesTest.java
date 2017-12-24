@@ -61,7 +61,7 @@ public class DisabledCategoriesTest {
 		settingsBuilder.put("searchguard.audit.type", TestAuditlogImpl.class.getName());
 		settingsBuilder.put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_TRANSPORT_CATEGORIES, "nonexistent");
         settingsBuilder.put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_REST_CATEGORIES, "nonexistent");
-		AuditLogImpl auditLog = new AuditLogImpl(settingsBuilder.build(), null, null, AbstractSGUnitTest.MOCK_POOL, null, cs);
+		AuditLogImpl auditLog = new AuditLogImpl(settingsBuilder.build(), null, null, AbstractSGUnitTest.MOCK_POOL, null, cs, null);
 		logAll(auditLog);
 		
 		auditLog.pool.shutdown();
@@ -77,7 +77,7 @@ public class DisabledCategoriesTest {
 		Builder settingsBuilder  = Settings.builder();
 		settingsBuilder.put("searchguard.audit.type", "debug");
 		settingsBuilder.put("searchguard.audit.config.disabled_categories", "nonexistant, bad_headers");
-		AuditLog auditLog = new AuditLogImpl(settingsBuilder.build(), null, null, AbstractSGUnitTest.MOCK_POOL, null, cs);
+		AuditLog auditLog = new AuditLogImpl(settingsBuilder.build(), null, null, AbstractSGUnitTest.MOCK_POOL, null, cs, null);
 		logAll(auditLog);
 		String result = TestAuditlogImpl.sb.toString();
 		Assert.assertFalse(categoriesPresentInLog(result, Category.BAD_HEADERS));		
@@ -93,7 +93,7 @@ public class DisabledCategoriesTest {
 		
 		// we use the debug output, no ES client is needed. Also, we 
 		// do not need to close.
-		AuditLogImpl auditLog = new AuditLogImpl(settingsBuilder.build(), null, null, AbstractSGUnitTest.MOCK_POOL, null, cs);
+		AuditLogImpl auditLog = new AuditLogImpl(settingsBuilder.build(), null, null, AbstractSGUnitTest.MOCK_POOL, null, cs, null);
 		
 		logAll(auditLog);
 		
@@ -156,7 +156,7 @@ public class DisabledCategoriesTest {
 	
 		// we use the debug output, no ES client is needed. Also, we 
 		// do not need to close.		
-		AuditLog auditLog = new AuditLogImpl(settingsBuilder.build(), null, null, AbstractSGUnitTest.MOCK_POOL, null, cs);
+		AuditLog auditLog = new AuditLogImpl(settingsBuilder.build(), null, null, AbstractSGUnitTest.MOCK_POOL, null, cs, null);
 		
 		logAll(auditLog);
 		

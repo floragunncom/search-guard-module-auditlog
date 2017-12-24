@@ -14,7 +14,6 @@
 
 package com.floragunn.searchguard.auditlog.impl;
 
-import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -35,8 +34,8 @@ import org.elasticsearch.transport.TransportRequest;
 
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.auditlog.impl.AuditMessage.Category;
-import com.floragunn.searchguard.support.Base64Helper;
 import com.floragunn.searchguard.support.ConfigConstants;
+import com.floragunn.searchguard.support.SerializationHelper;
 import com.floragunn.searchguard.support.WildcardMatcher;
 import com.floragunn.searchguard.user.User;
 
@@ -47,6 +46,7 @@ public abstract class AbstractAuditLog implements AuditLog {
     protected final IndexNameExpressionResolver resolver;
     protected final ClusterService clusterService;
     protected final Settings settings;
+    protected final SerializationHelper serializationHelper;
     protected final boolean restAuditingEnabled;
     protected final boolean transportAuditingEnabled;
     protected final boolean resolveBulkRequests;
@@ -65,13 +65,17 @@ public abstract class AbstractAuditLog implements AuditLog {
     
     private final String searchguardIndex;
 
-    protected AbstractAuditLog(Settings settings, final ThreadPool threadPool, final IndexNameExpressionResolver resolver, final ClusterService clusterService) {
+    protected AbstractAuditLog(Settings settings, 
+            final ThreadPool threadPool, final IndexNameExpressionResolver resolver, 
+            final ClusterService clusterService,
+            final SerializationHelper serializationHelper) {
         super();
         this.threadPool = threadPool;
                 
         this.settings = settings;
         this.resolver = resolver;
         this.clusterService = clusterService;
+        this.serializationHelper = serializationHelper;
         
         this.searchguardIndex = settings.get(ConfigConstants.SEARCHGUARD_CONFIG_INDEX_NAME, ConfigConstants.SG_DEFAULT_CONFIG_INDEX);
 
@@ -385,7 +389,7 @@ public abstract class AbstractAuditLog implements AuditLog {
     private TransportAddress getRemoteAddress() {
         TransportAddress address = threadPool.getThreadContext().getTransient(ConfigConstants.SG_REMOTE_ADDRESS);
         if(address == null && threadPool.getThreadContext().getHeader(ConfigConstants.SG_REMOTE_ADDRESS_HEADER) != null) {
-            address = new TransportAddress((InetSocketAddress) Base64Helper.deserializeObject(threadPool.getThreadContext().getHeader(ConfigConstants.SG_REMOTE_ADDRESS_HEADER)));
+            address = serializationHelper.deserializeTransportAddress(threadPool.getThreadContext().getHeader(ConfigConstants.SG_REMOTE_ADDRESS_HEADER));
         }
         return address;
     }
@@ -393,7 +397,7 @@ public abstract class AbstractAuditLog implements AuditLog {
     private String getUser() {
         User user = threadPool.getThreadContext().getTransient(ConfigConstants.SG_USER);
         if(user == null && threadPool.getThreadContext().getHeader(ConfigConstants.SG_USER_HEADER) != null) {
-            user = (User) Base64Helper.deserializeObject(threadPool.getThreadContext().getHeader(ConfigConstants.SG_USER_HEADER));
+            user = serializationHelper.deserializeUser(threadPool.getThreadContext().getHeader(ConfigConstants.SG_USER_HEADER));
         }
         return user==null?null:user.getName();
     }
