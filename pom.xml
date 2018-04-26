@@ -15,7 +15,7 @@
     </parent>
 
     <artifactId>dlic-search-guard-module-auditlog</artifactId>
-    <version>6.1.4-21.2-SNAPSHOT</version>
+    <version>6.1.4-20.3-SNAPSHOT</version>
     <packaging>jar</packaging>
 
     <name>Search Guard Auditlog</name>
