@@ -20,9 +20,11 @@ import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.stream.Collectors;
 
 import org.apache.http.client.utils.URIBuilder;
 import org.elasticsearch.ExceptionsHelper;
@@ -47,6 +49,7 @@ import com.floragunn.searchguard.user.User;
 public class AuditMessage {
 
     private static final DateTimeFormatter DEFAULT_FORMAT = DateTimeFormat.forPattern("yyyy-MM-dd'T'HH:mm:ss.SSSZZ");
+    private static final String AUTHORIZATION_HEADER = "Authorization";   
     protected final Map<String, Object> auditInfo = new HashMap<String, Object>(50);
     protected final Category category;
 
@@ -105,18 +108,21 @@ public class AuditMessage {
         auditInfo.put(AuditMessageKey.PRINCIPAL, threadContext.getTransient(ConfigConstants.SG_SSL_TRANSPORT_PRINCIPAL));    
     }
 
-    private static Iterable<Map.Entry<String, String>> formatHeaders(RestRequest request) {
+    private Iterable<Map.Entry<String, String>> formatHeaders(RestRequest request) {
         if(request == null) {
             return null;
         }
         
         if((request instanceof Netty4HttpRequest)) {
-            return ((Netty4HttpRequest) request).request().headers().entries();
+            return filterRestHeaders(((Netty4HttpRequest) request).request().headers().entries());
         } else {
             
             List<Map.Entry<String, String>> result = new ArrayList<Map.Entry<String,String>>();
             
             for (String key: request.getHeaders().keySet()) {
+                if(key != null && key.equalsIgnoreCase(AUTHORIZATION_HEADER)) {
+                    continue;
+                }
                 List<String> values = request.getHeaders().get(key);
                 if(values != null && values.size() > 0) {
                     result.add(new Map.Entry<String, String>() {
@@ -153,15 +159,20 @@ public class AuditMessage {
                         
                     });
                 }
-            }
-            
-            return result;
-            
-        }
-        
-        
+            }            
+            return result;            
+        }                
     }
-    
+
+    private List<Map.Entry<String, String>> filterRestHeaders(List<Map.Entry<String, String>> headers) {
+        if(headers != null && !headers.isEmpty()) {
+            return new LinkedList<Map.Entry<String, String>>(headers)
+                    .stream()
+                    .filter(entry -> !entry.getKey().equalsIgnoreCase(AUTHORIZATION_HEADER))
+                    .collect(Collectors.toList());         
+        }
+        return headers;
+    }
     
     public Map<String, Object> getAsMap() {
       return Collections.unmodifiableMap(this.auditInfo);

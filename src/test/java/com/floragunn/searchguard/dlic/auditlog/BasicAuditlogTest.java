@@ -81,7 +81,7 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
         TestAuditlogImpl.clear();
 
     }
-    
+        
     public void testWrongUser() throws Exception {
       
         HttpResponse response = rh.executeGetRequest("", new BasicHeader("Authorization", "Basic "+encodeBasicHeader("wronguser", "admin")));
@@ -91,6 +91,7 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
         Assert.assertTrue(TestAuditlogImpl.sb.toString(),TestAuditlogImpl.sb.toString().contains("wronguser"));
         Assert.assertTrue(TestAuditlogImpl.sb.toString(),TestAuditlogImpl.sb.toString().contains("utc_timestamp"));
         Assert.assertFalse(TestAuditlogImpl.sb.toString(),TestAuditlogImpl.sb.toString().contains("AUTHENTICATED"));
+        Assert.assertFalse(TestAuditlogImpl.sb.toString().contains("Authorization"));
         Assert.assertEquals(1, TestAuditlogImpl.messages.size());
     }
    
@@ -100,7 +101,7 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
         HttpResponse response = rh.executeGetRequest("", new BasicHeader("Authorization", "unknown "+encodeBasicHeader("unknown", "unknown")));
         Assert.assertEquals(HttpStatus.SC_UNAUTHORIZED, response.getStatusCode());
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("FAILED_LOGIN"));
-        Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("Authorization=unknown"));
+        Assert.assertFalse(TestAuditlogImpl.sb.toString().contains("Authorization=unknown"));
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("utc_timestamp"));
         Assert.assertFalse(TestAuditlogImpl.sb.toString().contains("AUTHENTICATED"));
         Assert.assertEquals(1, TestAuditlogImpl.messages.size());
@@ -115,6 +116,7 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("/_search"));
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("utc_timestamp"));
         Assert.assertFalse(TestAuditlogImpl.sb.toString().contains("AUTHENTICATED"));
+        Assert.assertFalse(TestAuditlogImpl.sb.toString().contains("Authorization"));
         Assert.assertEquals(1, TestAuditlogImpl.messages.size());
     }
     
